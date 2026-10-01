@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TURBO_TELEMETRY_DISABLED: '1'
+  NEXT_TELEMETRY_DISABLED: '1'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare environment files
+        run: |
+          cp apps/api/.env.example apps/api/.env
+          cp apps/web/.env.example apps/web/.env.local
+
+      # Same images and init scripts as local development (creates planit and planit_test).
+      - name: Start PostgreSQL and Redis
+        run: docker compose up -d --wait
+
+      - name: Apply migrations
+        run: |
+          pnpm db:migrate:deploy
+          DATABASE_URL=postgresql://planit:planit_dev_password@127.0.0.1:5432/planit_test pnpm db:migrate:deploy
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm run test
+
+      - name: API e2e tests
+        run: pnpm run test:e2e
+
+      - name: Build
+        run: pnpm build
+
+      - name: Audit production dependencies
+        run: pnpm audit --prod
+        continue-on-error: true

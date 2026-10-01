@@ -1,0 +1,33 @@
+{
+  "name": "@planit/shared",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Runtime code shared by PlanIT clients and the API: constants, Zod schemas, and pure functions.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@planit/types": "workspace:*",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@planit/config": "workspace:*",
+    "eslint": "9.39.5",
+    "typescript": "6.0.3",
+    "vitest": "5.0.3"
+  }
+}

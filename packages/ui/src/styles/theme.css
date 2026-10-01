@@ -1,0 +1,131 @@
+/*
+ * PlanIT design tokens. Semantic CSS variables are defined for light and dark themes and
+ * exposed to Tailwind through `@theme inline`, so components only ever reference semantic
+ * names (bg-background, text-muted-foreground, ...) and never raw palette colours.
+ * The `.dark` class is applied to <html> by the custom theme store
+ * (`apps/web/src/lib/theme/theme-store.ts`) before first paint.
+ */
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --radius: 0.75rem;
+
+  --background: oklch(0.985 0.003 264);
+  --foreground: oklch(0.21 0.025 265);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.025 265);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.21 0.025 265);
+  --primary: oklch(0.511 0.23 277);
+  --primary-foreground: oklch(0.985 0.01 277);
+  --secondary: oklch(0.955 0.008 264);
+  --secondary-foreground: oklch(0.28 0.03 265);
+  --muted: oklch(0.955 0.008 264);
+  --muted-foreground: oklch(0.52 0.025 264);
+  --accent: oklch(0.95 0.025 277);
+  --accent-foreground: oklch(0.36 0.15 277);
+  --destructive: oklch(0.577 0.215 27);
+  --destructive-foreground: oklch(0.985 0 0);
+  --success: oklch(0.6 0.15 155);
+  --warning: oklch(0.72 0.16 70);
+  --border: oklch(0.915 0.01 264);
+  --input: oklch(0.89 0.012 264);
+  --ring: oklch(0.511 0.23 277);
+
+  --priority-high: oklch(0.6 0.2 25);
+  --priority-medium: oklch(0.72 0.16 70);
+  --priority-low: oklch(0.62 0.13 230);
+
+  --sidebar: oklch(0.975 0.004 264);
+  --sidebar-foreground: oklch(0.3 0.025 265);
+  --sidebar-active: oklch(0.94 0.03 277);
+  --sidebar-active-foreground: oklch(0.36 0.17 277);
+}
+
+.dark {
+  --background: oklch(0.16 0.012 265);
+  --foreground: oklch(0.95 0.008 264);
+  --card: oklch(0.2 0.014 265);
+  --card-foreground: oklch(0.95 0.008 264);
+  --popover: oklch(0.2 0.014 265);
+  --popover-foreground: oklch(0.95 0.008 264);
+  --primary: oklch(0.68 0.17 277);
+  --primary-foreground: oklch(0.16 0.03 277);
+  --secondary: oklch(0.26 0.016 265);
+  --secondary-foreground: oklch(0.93 0.008 264);
+  --muted: oklch(0.25 0.014 265);
+  --muted-foreground: oklch(0.7 0.018 264);
+  --accent: oklch(0.28 0.05 277);
+  --accent-foreground: oklch(0.88 0.07 277);
+  --destructive: oklch(0.66 0.2 22);
+  --destructive-foreground: oklch(0.985 0 0);
+  --success: oklch(0.7 0.15 155);
+  --warning: oklch(0.79 0.15 75);
+  --border: oklch(0.29 0.016 265);
+  --input: oklch(0.32 0.018 265);
+  --ring: oklch(0.68 0.17 277);
+
+  --priority-high: oklch(0.68 0.19 25);
+  --priority-medium: oklch(0.79 0.15 75);
+  --priority-low: oklch(0.7 0.12 230);
+
+  --sidebar: oklch(0.18 0.013 265);
+  --sidebar-foreground: oklch(0.85 0.012 264);
+  --sidebar-active: oklch(0.27 0.05 277);
+  --sidebar-active-foreground: oklch(0.9 0.07 277);
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-priority-high: var(--priority-high);
+  --color-priority-medium: var(--priority-medium);
+  --color-priority-low: var(--priority-low);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-active: var(--sidebar-active);
+  --color-sidebar-active-foreground: var(--sidebar-active-foreground);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}

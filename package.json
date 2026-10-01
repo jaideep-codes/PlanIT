@@ -1,0 +1,35 @@
+{
+  "name": "planit",
+  "private": true,
+  "description": "PlanIT turns goals into scheduled work and measures whether you actually followed through.",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=24.11.0",
+    "pnpm": ">=9.15.0"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:e2e": "turbo run test:e2e --concurrency=1",
+    "check": "turbo run lint typecheck test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "services:up": "docker compose up -d --wait",
+    "services:down": "docker compose down",
+    "services:reset": "docker compose down --volumes",
+    "db:generate": "pnpm --filter @planit/api run db:generate",
+    "db:migrate": "pnpm --filter @planit/api run db:migrate",
+    "db:migrate:deploy": "pnpm --filter @planit/api run db:migrate:deploy",
+    "db:status": "pnpm --filter @planit/api run db:status",
+    "db:studio": "pnpm --filter @planit/api run db:studio"
+  },
+  "devDependencies": {
+    "prettier": "3.9.9",
+    "prettier-plugin-tailwindcss": "0.8.1",
+    "turbo": "2.11.6"
+  }
+}

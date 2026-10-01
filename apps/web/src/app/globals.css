@@ -1,0 +1,10 @@
+@import 'tailwindcss';
+@import '@planit/ui/styles/theme.css';
+
+/* @planit/ui is consumed as source from the workspace; Tailwind must scan it for classes. */
+@source '../../../../packages/ui/src';
+
+@theme inline {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}

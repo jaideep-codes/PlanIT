@@ -1,0 +1,17 @@
+// PlanIT database schema — entry point.
+// Models are split per domain into sibling *.prisma files. Conventions (see docs/database-schema.md):
+//   - tables/columns are snake_case via @@map/@map; Prisma fields are camelCase
+//   - primary keys are time-ordered UUIDv7
+//   - every timestamp is timestamptz (stored in UTC)
+//   - every user-owned row carries an explicit owner foreign key
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}

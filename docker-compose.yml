@@ -1,0 +1,52 @@
+# Local development services only. Application processes (web, api) run on the host via `pnpm dev`.
+# Ports bind to 127.0.0.1 so the services are not reachable from the local network.
+# Credentials below are development defaults; override them in a root .env file if needed.
+name: planit
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-planit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-planit_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-planit}
+    ports:
+      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-planit} -d ${POSTGRES_DB:-planit}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD:-planit_dev_redis}
+      - --appendonly
+      - 'yes'
+    ports:
+      - '127.0.0.1:${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'redis-cli -a "$${REDIS_PASSWORD:-planit_dev_redis}" --no-auth-warning ping | grep PONG',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-planit_dev_redis}
+
+volumes:
+  postgres-data:
+  redis-data:

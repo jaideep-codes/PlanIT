@@ -1,0 +1,4 @@
+{
+  "extends": "@planit/config/tsconfig/react-library.json",
+  "include": ["src", "vitest.config.ts"]
+}

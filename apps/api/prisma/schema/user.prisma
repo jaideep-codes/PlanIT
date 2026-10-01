@@ -1,0 +1,73 @@
+// Identity and per-user preferences. Authentication tables (sessions, OTPs, OAuth accounts)
+// are added in Phase 2.
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING_DELETION
+}
+
+enum ThemePreference {
+  LIGHT
+  DARK
+  SYSTEM
+}
+
+enum TaskSortOrder {
+  MANUAL
+  PRIORITY
+  DUE_DATE
+  SCHEDULED_START
+  CREATED_AT
+}
+
+model User {
+  id              String     @id @default(uuid(7)) @db.Uuid
+  /// Trimmed and lower-cased by the application; enforced by a CHECK constraint.
+  email           String     @unique @db.VarChar(320)
+  /// Argon2id hash. Null for accounts that only use Google sign-in. Never serialised to clients.
+  passwordHash    String?    @map("password_hash")
+  /// Null until the email OTP is verified. Unverified accounts cannot use the product.
+  emailVerifiedAt DateTime?  @map("email_verified_at") @db.Timestamptz(3)
+  /// Lower-case handle chosen during onboarding; enforced by a CHECK constraint.
+  username        String?    @unique @db.VarChar(30)
+  displayName     String?    @map("display_name") @db.VarChar(50)
+  /// Identifier of a predefined avatar; uploads are not supported.
+  avatarId        String?    @map("avatar_id") @db.VarChar(64)
+  bio             String?    @db.VarChar(280)
+  birthday        DateTime?  @db.Date
+  /// ISO 3166-1 alpha-2, upper-case.
+  country         String?    @db.Char(2)
+  /// IANA timezone name, used for day/week boundaries and recurrence.
+  timezone        String     @default("UTC") @db.VarChar(64)
+  status          UserStatus @default(ACTIVE)
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  preference UserPreference?
+
+  @@map("users")
+}
+
+model UserPreference {
+  userId                  String          @id @map("user_id") @db.Uuid
+  theme                   ThemePreference @default(SYSTEM)
+  /// 0 = Sunday … 6 = Saturday.
+  weekStartsOn            Int             @default(1) @map("week_starts_on") @db.SmallInt
+  defaultTaskSort         TaskSortOrder   @default(MANUAL) @map("default_task_sort")
+  /// Local wall-clock minutes after midnight (0–1439) in the user's timezone.
+  preferredFocusStart     Int?            @map("preferred_focus_start") @db.SmallInt
+  /// Local wall-clock minutes after midnight (0–1439) in the user's timezone.
+  preferredFocusEnd       Int?            @map("preferred_focus_end") @db.SmallInt
+  dailyFocusGoalMinutes   Int?            @map("daily_focus_goal_minutes") @db.SmallInt
+  /// Versioned document validated by a Zod schema in @planit/shared before every write.
+  notificationPreferences Json            @default("{}") @map("notification_preferences")
+  /// Versioned document validated by a Zod schema in @planit/shared before every write.
+  planningPreferences     Json            @default("{}") @map("planning_preferences")
+  createdAt               DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt               DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+}

@@ -1,0 +1,36 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# generated
+apps/api/src/generated/
+
+# tooling caches
+.turbo/
+coverage/
+.eslintcache
+
+# environment — never commit real values; *.example files are committed
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
