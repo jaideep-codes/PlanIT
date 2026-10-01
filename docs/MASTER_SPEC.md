@@ -43,27 +43,28 @@ prefer the simplest architecture that satisfies the specification
 and leaves clear room for future expansion.
 
 ============================================================
+
 1. PRODUCT IDENTITY
-============================================================
+   \============================================================
 
 PLANIT is an AI-powered productivity and focus management platform.
 
 The core product loop is:
 
 GOAL
-  ↓
+↓
 PLAN
-  ↓
+↓
 SCHEDULE
-  ↓
+↓
 EXECUTE
-  ↓
+↓
 FOCUS
-  ↓
+↓
 MEASURE
-  ↓
+↓
 IMPROVE
-  ↓
+↓
 RE-PLAN
 
 The product should help users turn goals into concrete scheduled
@@ -93,8 +94,7 @@ Its central identity is:
 "PlanIT turns goals into scheduled work and measures whether
 you actually followed through."
 
-============================================================
-2. PRODUCT TARGET USERS
+============================================================ 2. PRODUCT TARGET USERS
 ============================================================
 
 Primary users:
@@ -120,8 +120,7 @@ Example use cases:
 
 "I missed three days. Re-plan the rest of my goal."
 
-============================================================
-3. CORE PRODUCT PRINCIPLES
+============================================================ 3. CORE PRODUCT PRINCIPLES
 ============================================================
 
 Principle 1:
@@ -156,13 +155,13 @@ The user is the authority over changes to their data.
 Principle 10:
 No AI-generated mutation happens silently.
 
-============================================================
-4. INITIAL PRODUCT SCOPE
+============================================================ 4. INITIAL PRODUCT SCOPE
 ============================================================
 
 Build the following core product:
 
 AUTH:
+
 - email/password
 - mandatory email verification via OTP
 - Google login
@@ -171,6 +170,7 @@ AUTH:
 - secure session management
 
 TASKS:
+
 - create
 - edit
 - delete
@@ -187,6 +187,7 @@ TASKS:
 - recurring tasks
 
 FOCUS:
+
 - start
 - pause
 - resume
@@ -197,6 +198,7 @@ FOCUS:
 - task-specific focus time
 
 CALENDAR:
+
 - PlanIT's internal calendar
 - scheduled tasks
 - recurring occurrences
@@ -206,6 +208,7 @@ CALENDAR:
 - monthly view where appropriate
 
 DASHBOARD:
+
 - today's progress
 - focus time today
 - priority progress
@@ -215,6 +218,7 @@ DASHBOARD:
 - sorting
 
 STATISTICS:
+
 - daily
 - weekly
 - monthly
@@ -224,6 +228,7 @@ STATISTICS:
 - productivity heatmap
 
 GOALS:
+
 - create goals
 - deadlines
 - milestones
@@ -232,11 +237,13 @@ GOALS:
 - target focus time
 
 SKILLS:
+
 - manually assigned skills
 - task-skill relationships
 - focus time by skill
 
 SOCIAL:
+
 - profiles
 - friends
 - friend requests
@@ -247,6 +254,7 @@ SOCIAL:
 - friends leaderboard
 
 AI:
+
 - Ask PlanIT
 - goal → plan
 - plan → tasks
@@ -257,18 +265,19 @@ AI:
 - AI productivity insights
 
 BYOK:
+
 - optional
 - ephemeral browser-only
 - never stored by PlanIT
 - separate security model from PlanIT-managed AI
 
 THEME:
+
 - light
 - dark
 - system
 
-============================================================
-5. DELIBERATELY DEFERRED FEATURES
+============================================================ 5. DELIBERATELY DEFERRED FEATURES
 ============================================================
 
 DO NOT BUILD THESE NOW:
@@ -298,8 +307,7 @@ The current calendar is an INTERNAL PlanIT calendar.
 Do not implement external integrations unless explicitly instructed
 in a future phase.
 
-============================================================
-6. UI / UX DIRECTION
+============================================================ 6. UI / UX DIRECTION
 ============================================================
 
 Use the provided PlanIT screenshots as the visual reference when available.
@@ -334,8 +342,7 @@ Do NOT build a separate mobile application yet.
 
 The application should feel like a real product, not a college CRUD demo.
 
-============================================================
-7. MAIN NAVIGATION
+============================================================ 7. MAIN NAVIGATION
 ============================================================
 
 Primary navigation:
@@ -357,8 +364,7 @@ or
 
 Do not add unnecessary navigation items.
 
-============================================================
-8. RECOMMENDED TECH STACK
+============================================================ 8. RECOMMENDED TECH STACK
 ============================================================
 
 FRONTEND
@@ -427,14 +433,14 @@ MONOREPO
 Prefer:
 
 /apps
-  /web
-  /api
+/web
+/api
 
 /packages
-  /shared
-  /types
-  /ui
-  /config
+/shared
+/types
+/ui
+/config
 
 /docs
 
@@ -444,8 +450,7 @@ defined in this specification.
 After earlier phases have created the structure, preserve sound
 architectural decisions unless a documented reason requires changing them.
 
-============================================================
-9. ARCHITECTURE
+============================================================ 9. ARCHITECTURE
 ============================================================
 
 Start as a MODULAR MONOLITH.
@@ -469,31 +474,31 @@ Conceptual architecture:
           |
     +-----+------+-------+-------+-------+------+
     |     |      |       |       |       |      |
-  Auth  Tasks  Focus   Goals  Stats   Social  AI
-    |     |      |       |       |       |      |
-    +-----+------+-------+-------+-------+------+
-                         |
-                  Notifications
-                         |
-                   Internal Calendar
+
+Auth Tasks Focus Goals Stats Social AI
+| | | | | | |
++-----+------+-------+-------+-------+------+
+|
+Notifications
+|
+Internal Calendar
 
 Future clients:
 
 Next.js Web
-     |
-     +------------------------------+
-                                    |
-                              PLANIT API
-                                    |
-                       +------------+------------+
-                       |                         |
-                  Future Mobile               MCP
-                  Future WhatsApp
+|
++------------------------------+
+|
+PLANIT API
+|
++------------+------------+
+| |
+Future Mobile MCP
+Future WhatsApp
 
 External integrations are future only.
 
-============================================================
-10. MODULAR BACKEND
+============================================================ 10. MODULAR BACKEND
 ============================================================
 
 Suggested modules:
@@ -543,8 +548,7 @@ Repositories/data layer handle persistence.
 
 AI must not directly access the database.
 
-============================================================
-11. DATABASE DESIGN
+============================================================ 11. DATABASE DESIGN
 ============================================================
 
 Use PostgreSQL.
@@ -554,6 +558,7 @@ All user-owned resources must have explicit ownership.
 USER
 
 User:
+
 - id
 - email
 - passwordHash
@@ -571,8 +576,7 @@ User:
 
 Never expose passwordHash through API responses.
 
-============================================================
-12. USER PREFERENCES
+============================================================ 12. USER PREFERENCES
 ============================================================
 
 UserPreference:
@@ -587,8 +591,7 @@ UserPreference:
 - notificationPreferences
 - planningPreferences
 
-============================================================
-13. USER AVAILABILITY
+============================================================ 13. USER AVAILABILITY
 ============================================================
 
 UserAvailability:
@@ -613,8 +616,7 @@ Monday:
 
 This data is part of the user's persistent planning context.
 
-============================================================
-14. TASK MODEL
+============================================================ 14. TASK MODEL
 ============================================================
 
 Task:
@@ -650,13 +652,13 @@ CANCELLED
 Do not overload status with timer state.
 
 A task can:
+
 - exist without a timer
 - contain many Focus Sessions
 - belong to a goal
 - have multiple skills
 
-============================================================
-15. RECURRING TASKS
+============================================================ 15. RECURRING TASKS
 ============================================================
 
 RecurringTask:
@@ -704,8 +706,7 @@ Use recurrence rules and generate occurrences intelligently.
 
 Timezone correctness matters.
 
-============================================================
-16. FOCUS SESSION MODEL
+============================================================ 16. FOCUS SESSION MODEL
 ============================================================
 
 FocusSession:
@@ -769,8 +770,7 @@ PAUSE
 RESUME
 STOP
 
-============================================================
-17. TIMER SECURITY / INTEGRITY
+============================================================ 17. TIMER SECURITY / INTEGRITY
 ============================================================
 
 When starting:
@@ -795,8 +795,7 @@ Do not trust a client-supplied duration.
 
 Do not allow a user to modify another user's session.
 
-============================================================
-18. GOALS
+============================================================ 18. GOALS
 ============================================================
 
 Goal:
@@ -831,8 +830,7 @@ Users can manually create goals.
 
 AI is optional.
 
-============================================================
-19. SKILLS
+============================================================ 19. SKILLS
 ============================================================
 
 Skill:
@@ -855,6 +853,7 @@ Task:
 "Implement LRU Cache"
 
 Skills:
+
 - DSA
 - Algorithms
 - C++
@@ -870,8 +869,7 @@ AI may suggest skills.
 AI MUST NOT silently create/assign skills without confirmation
 until this feature is explicitly implemented.
 
-============================================================
-20. ANALYTICS
+============================================================ 20. ANALYTICS
 ============================================================
 
 Raw data source:
@@ -895,8 +893,7 @@ Aggregates are derived.
 
 There must be a way to rebuild aggregates if they become inconsistent.
 
-============================================================
-21. DASHBOARD
+============================================================ 21. DASHBOARD
 ============================================================
 
 Home should show:
@@ -927,8 +924,7 @@ Task:
 [Pause]
 [Finish]
 
-============================================================
-22. CALENDAR
+============================================================ 22. CALENDAR
 ============================================================
 
 Current calendar is INTERNAL PLANIT CALENDAR.
@@ -957,8 +953,7 @@ Eventually:
 
 productivity heatmap.
 
-============================================================
-23. STATISTICS PAGE
+============================================================ 23. STATISTICS PAGE
 ============================================================
 
 DAILY VIEWS:
@@ -996,8 +991,7 @@ SUMMARY:
 - Most Tasks Completed
 - Best Month
 
-============================================================
-24. PERSONAL RECORDS
+============================================================ 24. PERSONAL RECORDS
 ============================================================
 
 Examples:
@@ -1013,8 +1007,7 @@ These should be generated from actual data.
 
 Never use fabricated values.
 
-============================================================
-25. STREAKS
+============================================================ 25. STREAKS
 ============================================================
 
 Track:
@@ -1028,14 +1021,14 @@ Define the rule clearly.
 Example:
 
 A day is active when the user:
+
 - completes at least one focus session
-OR
+  OR
 - reaches the minimum focus threshold
 
 The exact rule should be documented and consistent.
 
-============================================================
-26. LEADERBOARDS
+============================================================ 26. LEADERBOARDS
 ============================================================
 
 Leaderboards:
@@ -1081,8 +1074,7 @@ A user should be able to opt out of public ranking.
 
 Historical leaderboards are future functionality.
 
-============================================================
-27. PROFILE
+============================================================ 27. PROFILE
 ============================================================
 
 Profile contains:
@@ -1102,8 +1094,7 @@ Only predefined cartoon/avatar choices initially.
 
 Do not require user-uploaded profile photos.
 
-============================================================
-28. PROFILE PRIVACY — VERY IMPORTANT
+============================================================ 28. PROFILE PRIVACY — VERY IMPORTANT
 ============================================================
 
 Do NOT use one generic public/private switch.
@@ -1160,10 +1151,12 @@ Use a dedicated visibility model.
 Example:
 
 ProfileVisibility:
+
 - userId
 - profileVisibility
 
 ProfileFieldVisibility:
+
 - id
 - userId
 - field
@@ -1184,8 +1177,7 @@ Never expose the entire User/Profile object and filter it in the UI.
 
 Filtering must happen server-side.
 
-============================================================
-29. PROFILE PREVIEW
+============================================================ 29. PROFILE PREVIEW
 ============================================================
 
 Provide:
@@ -1213,8 +1205,7 @@ Example:
 [✓] Weekly Stats
 [ ] Monthly Stats
 
-============================================================
-30. PROFILE VIEWS
+============================================================ 30. PROFILE VIEWS
 ============================================================
 
 Profile views are optional and secondary.
@@ -1227,8 +1218,7 @@ Possible functionality:
 
 Do not make this central to PlanIT.
 
-============================================================
-31. FRIEND SYSTEM
+============================================================ 31. FRIEND SYSTEM
 ============================================================
 
 Support:
@@ -1251,8 +1241,7 @@ BLOCKED
 
 Blocking must override normal discovery/interaction.
 
-============================================================
-32. NOTIFICATIONS
+============================================================ 32. NOTIFICATIONS
 ============================================================
 
 Start with in-app notifications.
@@ -1274,8 +1263,7 @@ Email notifications may come later.
 
 WhatsApp notifications are deferred.
 
-============================================================
-33. AI — CORE PRODUCT FEATURE
+============================================================ 33. AI — CORE PRODUCT FEATURE
 ============================================================
 
 AI is one of the major differentiators of PlanIT.
@@ -1283,17 +1271,17 @@ AI is one of the major differentiators of PlanIT.
 The main AI experience is:
 
 USER GOAL
-  ↓
+↓
 AI DISCUSSION
-  ↓
+↓
 AI PLAN
-  ↓
+↓
 TASKS
-  ↓
+↓
 SCHEDULE
-  ↓
+↓
 USER APPROVAL
-  ↓
+↓
 APPLY
 
 Example:
@@ -1322,8 +1310,7 @@ Then propose:
 - estimated duration
 - schedule
 
-============================================================
-34. AI ARCHITECTURE
+============================================================ 34. AI ARCHITECTURE
 ============================================================
 
 Create a dedicated AI module.
@@ -1351,8 +1338,7 @@ Implement provider adapters when needed:
 
 Do not scatter LLM calls throughout controllers.
 
-============================================================
-35. TWO AI MODES
+============================================================ 35. TWO AI MODES
 ============================================================
 
 PLANIT-MANAGED AI
@@ -1365,8 +1351,7 @@ User provides their own provider API key.
 
 These must be strictly separated.
 
-============================================================
-36. PLANIT-MANAGED AI SECURITY
+============================================================ 36. PLANIT-MANAGED AI SECURITY
 ============================================================
 
 PlanIT-managed AI credentials:
@@ -1384,6 +1369,7 @@ PlanIT-managed AI credentials:
 Store using secure environment/secret management.
 
 Where provider infrastructure allows:
+
 - project limits
 - spend limits
 - alerts
@@ -1398,8 +1384,7 @@ The browser should receive only:
 
 Never the actual key.
 
-============================================================
-37. BYOK SECURITY — NON-NEGOTIABLE
+============================================================ 37. BYOK SECURITY — NON-NEGOTIABLE
 ============================================================
 
 The user wants BYOK WITHOUT PlanIT storing the key.
@@ -1435,6 +1420,7 @@ Do NOT implement:
 Do NOT persist it.
 
 On:
+
 - refresh
 - browser restart
 - tab/session termination
@@ -1452,30 +1438,31 @@ current browser session. However, secrets used directly in
 a browser can still be exposed if the browser/device is compromised.
 Use provider-side key restrictions and spending controls where available."
 
-============================================================
-38. BYOK REQUEST ARCHITECTURE
+============================================================ 38. BYOK REQUEST ARCHITECTURE
 ============================================================
 
 In BYOK mode:
 
 Browser
-  ↓
+↓
 Provider directly
 
 The raw BYOK key must NOT pass through:
 
 Browser
-  ↓
+↓
 PlanIT Backend
 
 Therefore:
 
 PlanIT backend never receives:
+
 - raw API key
 - Authorization header containing the key
 - provider credential
 
 The browser may send to the provider:
+
 - user prompt
 - selected PlanIT context
 - selected task/context data
@@ -1483,14 +1470,14 @@ The browser may send to the provider:
 Only the minimum necessary data should be provided.
 
 The AI provider should never receive:
+
 - PlanIT auth cookies
 - PlanIT access tokens
 - backend secrets
 - database credentials
 - another user's information
 
-============================================================
-39. BYOK AND USER DATA PRIVACY
+============================================================ 39. BYOK AND USER DATA PRIVACY
 ============================================================
 
 Before sending context to a BYOK provider, the UI should make the
@@ -1533,8 +1520,7 @@ Rules:
 - Context scope applies only to data sent to the BYOK provider and does not
   change PlanIT permissions or ownership checks.
 
-============================================================
-40. BYOK USAGE
+============================================================ 40. BYOK USAGE
 ============================================================
 
 Provide a BYOK usage panel.
@@ -1585,8 +1571,7 @@ Do not claim provider billing accuracy.
 
 The actual provider dashboard remains the billing authority.
 
-============================================================
-41. PLANIT-MANAGED AI USAGE
+============================================================ 41. PLANIT-MANAGED AI USAGE
 ============================================================
 
 PlanIT-managed AI should show:
@@ -1637,8 +1622,7 @@ When a limit is reached:
 
 Do NOT silently switch to another provider.
 
-============================================================
-42. BYOK DOES NOT BYPASS PLANIT AUTHORIZATION
+============================================================ 42. BYOK DOES NOT BYPASS PLANIT AUTHORIZATION
 ============================================================
 
 Critical:
@@ -1652,10 +1636,12 @@ to:
 BYOK
 
 changes ONLY:
+
 - inference provider
 - model/provider billing
 
 It does NOT change:
+
 - user identity
 - permissions
 - available PlanIT tools
@@ -1666,8 +1652,7 @@ It does NOT change:
 
 BYOK must never become a security bypass.
 
-============================================================
-43. AI NEVER HAS RAW DATABASE ACCESS
+============================================================ 43. AI NEVER HAS RAW DATABASE ACCESS
 ============================================================
 
 The model must NEVER:
@@ -1683,8 +1668,7 @@ The model must NEVER:
 
 Instead use explicitly defined application tools.
 
-============================================================
-44. AI TOOL MODEL
+============================================================ 44. AI TOOL MODEL
 ============================================================
 
 READ-ONLY TOOLS:
@@ -1724,7 +1708,8 @@ delete_task()
 
 directly to the model.
 
-------------------------------------------------------------
+---
+
 44A. FUTURE CONFIGURABLE AI TRUST LEVELS — DO NOT IMPLEMENT NOW
 ------------------------------------------------------------
 
@@ -1751,8 +1736,7 @@ Until explicitly introduced, the strict confirmation model remains mandatory.
 Future trust levels must never bypass backend authorization, ownership checks,
 privacy rules, proposal validation, audit logging, or safety controls.
 
-============================================================
-45. AUTHENTICATED USER ID
+============================================================ 45. AUTHENTICATED USER ID
 ============================================================
 
 NEVER trust a userId supplied by the model.
@@ -1762,7 +1746,7 @@ The authenticated backend session determines the user.
 Bad:
 
 {
-  "userId": "some-user-id"
+"userId": "some-user-id"
 }
 
 Good:
@@ -1774,15 +1758,14 @@ Every operation verifies ownership.
 Example:
 
 TaskService.updateTask(
-  authenticatedUser.id,
-  taskId,
-  changes
+authenticatedUser.id,
+taskId,
+changes
 )
 
 The service checks task.userId.
 
-============================================================
-46. USER DATA ISOLATION
+============================================================ 46. USER DATA ISOLATION
 ============================================================
 
 Every user-owned entity must be owner-scoped:
@@ -1813,8 +1796,7 @@ task exists
 AND
 task.userId === authenticatedUser.id
 
-============================================================
-47. AI CONTEXT
+============================================================ 47. AI CONTEXT
 ============================================================
 
 PlanIT should maintain structured user context.
@@ -1851,8 +1833,7 @@ Use structured data where possible:
 A memory layer may exist for facts that do not belong naturally
 in structured domain records.
 
-============================================================
-48. CONTEXT ASSEMBLY
+============================================================ 48. CONTEXT ASSEMBLY
 ============================================================
 
 Never dump the entire user's history into an AI prompt.
@@ -1873,11 +1854,11 @@ Potential order:
 
 Only include relevant information.
 
-============================================================
-49. AI MEMORY SECURITY
+============================================================ 49. AI MEMORY SECURITY
 ============================================================
 
 AI memory must be:
+
 - user-scoped
 - searchable only by owner
 - deletable by owner
@@ -1887,13 +1868,13 @@ AI memory must be:
 
 Memory retrieval must verify ownership.
 
-============================================================
-50. PROMPT INJECTION DEFENSE
+============================================================ 50. PROMPT INJECTION DEFENSE
 ============================================================
 
 Treat all user-generated content as UNTRUSTED DATA.
 
 Examples:
+
 - task title
 - task notes
 - goal description
@@ -1918,8 +1899,7 @@ Clearly separate:
 
 Never allow retrieved user text to override system/application policy.
 
-============================================================
-51. AI ACTION PROPOSAL FLOW
+============================================================ 51. AI ACTION PROPOSAL FLOW
 ============================================================
 
 This is mandatory.
@@ -1929,25 +1909,24 @@ AI MUST NOT directly make changes.
 FLOW:
 
 USER REQUEST
-   ↓
+↓
 AI UNDERSTANDS
-   ↓
+↓
 AI CREATES PROPOSAL
-   ↓
+↓
 PLANIT VALIDATES PROPOSAL
-   ↓
+↓
 USER SEES EXACT CHANGES
-   ↓
+↓
 USER CONFIRMS
-   ↓
+↓
 BACKEND VALIDATES OWNERSHIP
-   ↓
+↓
 EXECUTE EXACT APPROVED ACTIONS
 
 No automatic database mutation.
 
-============================================================
-52. PROPOSAL EXAMPLE
+============================================================ 52. PROPOSAL EXAMPLE
 ============================================================
 
 User:
@@ -1965,6 +1944,7 @@ Duration:
 8 weeks
 
 Tasks to create:
+
 - 24 DSA tasks
 - 12 DBMS tasks
 - 8 OS tasks
@@ -1993,8 +1973,7 @@ Buttons:
 
 No database mutation has happened yet.
 
-============================================================
-53. CALENDAR CONFIRMATION
+============================================================ 53. CALENDAR CONFIRMATION
 ============================================================
 
 Applying tasks does NOT automatically mean writing the schedule
@@ -2021,8 +2000,7 @@ ADD TO CALENDAR
 
 only then add the exact approved schedule.
 
-============================================================
-54. EXACT PROPOSAL APPROVAL
+============================================================ 54. EXACT PROPOSAL APPROVAL
 ============================================================
 
 For every proposal:
@@ -2048,7 +2026,8 @@ Never execute:
 
 Execute only the exact approved proposal.
 
-------------------------------------------------------------
+---
+
 54A. PROPOSAL EXPIRY AND STALENESS
 ------------------------------------------------------------
 
@@ -2073,7 +2052,8 @@ Recommended default:
 
 A proposal becoming stale MUST NOT result in partial execution.
 
-------------------------------------------------------------
+---
+
 54B. IDEMPOTENT PROPOSAL EXECUTION
 ------------------------------------------------------------
 
@@ -2096,8 +2076,7 @@ perform no duplicate mutation.
 For bulk proposals, all intended operations must be handled inside a
 transaction or through a durable, retry-safe execution strategy.
 
-============================================================
-55. HIGH IMPACT ACTIONS
+============================================================ 55. HIGH IMPACT ACTIONS
 ============================================================
 
 Require especially explicit confirmation for:
@@ -2113,8 +2092,7 @@ Require especially explicit confirmation for:
 - account changes
 - data deletion
 
-============================================================
-56. AI PLAN OUTPUT FORMAT
+============================================================ 56. AI PLAN OUTPUT FORMAT
 ============================================================
 
 Use structured JSON internally.
@@ -2122,20 +2100,19 @@ Use structured JSON internally.
 Example:
 
 {
-  "goal": {},
-  "milestones": [],
-  "tasks": [],
-  "schedule": [],
-  "changes": [],
-  "requiresCalendarConfirmation": true
+"goal": {},
+"milestones": [],
+"tasks": [],
+"schedule": [],
+"changes": [],
+"requiresCalendarConfirmation": true
 }
 
 Validate with Zod.
 
 Never directly execute an unvalidated LLM output.
 
-============================================================
-57. PLANIT AI RE-PLANNING
+============================================================ 57. PLANIT AI RE-PLANNING
 ============================================================
 
 Example:
@@ -2159,8 +2136,7 @@ The user must confirm.
 
 Calendar changes require the calendar confirmation described above.
 
-============================================================
-58. PLANIT DAILY PLANNER
+============================================================ 58. PLANIT DAILY PLANNER
 ============================================================
 
 Eventually allow:
@@ -2182,8 +2158,7 @@ It should generate a proposed daily plan.
 
 Do not automatically write it.
 
-============================================================
-59. AI INSIGHTS
+============================================================ 59. AI INSIGHTS
 ============================================================
 
 Eventually:
@@ -2200,8 +2175,7 @@ Insights must be based on actual PlanIT data.
 
 Do not fabricate.
 
-============================================================
-60. PROFILE PRIVACY
+============================================================ 60. PROFILE PRIVACY
 ============================================================
 
 Public profile rendering must happen server-side according to
@@ -2221,8 +2195,7 @@ allow only PUBLIC fields.
 Private:
 owner only.
 
-============================================================
-61. PUBLIC PROFILE API
+============================================================ 61. PUBLIC PROFILE API
 ============================================================
 
 Example:
@@ -2244,8 +2217,7 @@ restrict access according to policy.
 
 Do not return private fields.
 
-============================================================
-62. CACHING
+============================================================ 62. CACHING
 ============================================================
 
 Use Redis selectively.
@@ -2269,6 +2241,7 @@ leaderboard:friends:weekly:{userId}:{week}
 profile:public:{username}
 
 Do NOT cache:
+
 - secrets
 - raw BYOK keys
 - sensitive authorization decisions indefinitely
@@ -2279,13 +2252,13 @@ Redis is not the source of truth.
 If Redis fails, PlanIT must still function.
 
 Use:
+
 - TTL
 - invalidation
 - cache-aside
 - versioning where useful
 
-============================================================
-63. BACKGROUND JOBS
+============================================================ 63. BACKGROUND JOBS
 ============================================================
 
 Use BullMQ/Redis.
@@ -2316,8 +2289,7 @@ etc.
 
 Jobs should be idempotent where practical.
 
-============================================================
-64. STATISTICS PERFORMANCE
+============================================================ 64. STATISTICS PERFORMANCE
 ============================================================
 
 Do NOT calculate all-time statistics from raw FocusSessions
@@ -2326,19 +2298,18 @@ on every page request.
 Use:
 
 raw events
- ↓
+↓
 aggregation jobs
- ↓
+↓
 aggregate tables
- ↓
+↓
 cached results
 
 Raw data remains authoritative.
 
 Aggregates must be rebuildable.
 
-============================================================
-65. DATABASE INDEXES
+============================================================ 65. DATABASE INDEXES
 ============================================================
 
 Create indexes based on real queries.
@@ -2378,8 +2349,7 @@ profileOwnerId + viewedAt
 
 Do not over-index.
 
-============================================================
-66. SECURITY
+============================================================ 66. SECURITY
 ============================================================
 
 Implement:
@@ -2417,8 +2387,7 @@ Prevent:
 - prompt injection
 - AI tool abuse
 
-============================================================
-67. BROWSER SECURITY FOR EPHEMERAL BYOK
+============================================================ 67. BROWSER SECURITY FOR EPHEMERAL BYOK
 ============================================================
 
 Because BYOK exists in browser memory:
@@ -2440,6 +2409,7 @@ Use where appropriate:
 Keep BYOK credential in a narrowly scoped in-memory module.
 
 Do not expose the key to:
+
 - analytics SDKs
 - error trackers
 - debugging tools
@@ -2447,8 +2417,7 @@ Do not expose the key to:
 
 Never include it in React error state or exceptions.
 
-============================================================
-68. RATE LIMITING
+============================================================ 68. RATE LIMITING
 ============================================================
 
 Rate limit:
@@ -2466,8 +2435,7 @@ Rate limit:
 
 AI usage limits and application security limits are separate.
 
-============================================================
-69. AUTHENTICATION
+============================================================ 69. AUTHENTICATION
 ============================================================
 
 Support:
@@ -2494,12 +2462,12 @@ use Argon2id or equivalent.
 Use secure HTTP-only cookies wherever practical.
 
 Refresh tokens:
+
 - rotation
 - revocation
 - reuse detection where appropriate
 
-============================================================
-70. API DESIGN
+============================================================ 70. API DESIGN
 ============================================================
 
 Use REST initially.
@@ -2527,6 +2495,7 @@ Potential route groups:
 No external integrations in current phase.
 
 Use:
+
 - consistent response formats
 - correct HTTP status codes
 - Zod/class validation
@@ -2539,20 +2508,20 @@ Use cursor pagination for large datasets where appropriate.
 
 Never return unnecessary data.
 
-============================================================
-71. ERROR HANDLING
+============================================================ 71. ERROR HANDLING
 ============================================================
 
 Consistent errors:
 
 {
-  "error": {
-    "code": "TASK_NOT_FOUND",
-    "message": "Task not found"
-  }
+"error": {
+"code": "TASK_NOT_FOUND",
+"message": "Task not found"
+}
 }
 
 Production responses must never expose:
+
 - stack traces
 - SQL errors
 - secret values
@@ -2560,8 +2529,7 @@ Production responses must never expose:
 
 Detailed diagnostics belong in server-side logs.
 
-============================================================
-72. OBSERVABILITY
+============================================================ 72. OBSERVABILITY
 ============================================================
 
 Use:
@@ -2585,6 +2553,7 @@ Track:
 - notification failures
 
 NEVER log:
+
 - passwords
 - OTP
 - BYOK key
@@ -2592,8 +2561,7 @@ NEVER log:
 - refresh tokens
 - OAuth secrets
 
-============================================================
-73. AUDIT LOGGING
+============================================================ 73. AUDIT LOGGING
 ============================================================
 
 Audit important operations:
@@ -2610,8 +2578,7 @@ Audit important operations:
 
 Audit logs must not contain secrets.
 
-============================================================
-74. DATA EXPORT / DELETE
+============================================================ 74. DATA EXPORT / DELETE
 ============================================================
 
 User must eventually be able to:
@@ -2641,14 +2608,14 @@ Possible content:
 - planning preferences
 
 Never include:
+
 - passwords
 - auth tokens
 - refresh tokens
 - API keys
 - infrastructure secrets
 
-============================================================
-75. PLANIT CONTEXT EXPORT
+============================================================ 75. PLANIT CONTEXT EXPORT
 ============================================================
 
 Generate something like:
@@ -2680,14 +2647,14 @@ PREFERENCES
 ...
 
 This can later be used with:
+
 - ChatGPT
 - Claude
 - Gemini
 - Cursor
 - other AI systems
 
-============================================================
-76. FREEMIUM ARCHITECTURE
+============================================================ 76. FREEMIUM ARCHITECTURE
 ============================================================
 
 Prepare for free/pro entitlements.
@@ -2739,8 +2706,7 @@ BYOK is conceptually separate from PlanIT-managed AI limits.
 
 Using BYOK does NOT unlock unauthorized PlanIT features.
 
-============================================================
-77. AI USAGE DATA MODEL
+============================================================ 77. AI USAGE DATA MODEL
 ============================================================
 
 AIUsageRecord:
@@ -2760,6 +2726,7 @@ AIUsageRecord:
 - createdAt
 
 NEVER store:
+
 - raw API key
 - authorization header
 - prompt text unless explicitly designed as user-visible history
@@ -2772,8 +2739,7 @@ usage records are informational.
 For PlanIT-managed:
 usage can support entitlement/billing logic.
 
-============================================================
-78. AI USAGE PRIVACY
+============================================================ 78. AI USAGE PRIVACY
 ============================================================
 
 Do not use AI prompts as general analytics data.
@@ -2783,6 +2749,7 @@ Do not send AI conversations to analytics.
 If analytics are implemented:
 
 Track only safe metadata:
+
 - request count
 - model
 - provider
@@ -2794,8 +2761,7 @@ No secrets.
 
 No credential content.
 
-============================================================
-79. AI CHAT HISTORY
+============================================================ 79. AI CHAT HISTORY
 ============================================================
 
 If chat history is stored:
@@ -2810,8 +2776,7 @@ If chat history is stored:
 If the raw provider request contains a key:
 that key must never be part of the chat object.
 
-============================================================
-80. NO GENERIC POST SYSTEM
+============================================================ 80. NO GENERIC POST SYSTEM
 ============================================================
 
 Do NOT build a generic:
@@ -2835,8 +2800,7 @@ Later, if useful, prefer productivity-specific:
 
 The core product should not become a social media clone.
 
-============================================================
-81. FUTURE EXTERNAL INTEGRATIONS
+============================================================ 81. FUTURE EXTERNAL INTEGRATIONS
 ============================================================
 
 DEFER:
@@ -2854,8 +2818,7 @@ But do NOT build it now.
 
 The current PlanIT calendar is internal.
 
-============================================================
-82. FUTURE LINKEDIN / CONTENT SYSTEM
+============================================================ 82. FUTURE LINKEDIN / CONTENT SYSTEM
 ============================================================
 
 Deferred.
@@ -2873,8 +2836,7 @@ Do not implement LinkedIn API integration now.
 Context/content generation can eventually exist independently
 of publishing.
 
-============================================================
-83. FUTURE WHATSAPP
+============================================================ 83. FUTURE WHATSAPP
 ============================================================
 
 Deferred.
@@ -2896,8 +2858,7 @@ But this is future.
 
 Never allow WhatsApp to directly bypass PlanIT authorization.
 
-============================================================
-84. FUTURE MCP
+============================================================ 84. FUTURE MCP
 ============================================================
 
 MCP is a future phase.
@@ -2926,8 +2887,7 @@ The MCP layer must call PlanIT application services.
 
 It must never access PostgreSQL directly.
 
-============================================================
-85. FUTURE MARKETPLACE
+============================================================ 85. FUTURE MARKETPLACE
 ============================================================
 
 Do not build now.
@@ -2941,6 +2901,7 @@ Platform takes a fee.
 Private contact information remains protected.
 
 Future requirements:
+
 - payments
 - booking
 - availability
@@ -2955,8 +2916,7 @@ Future requirements:
 Keep this out of the initial architecture except where
 future extensibility is useful.
 
-============================================================
-86. FUTURE MOBILE APP
+============================================================ 86. FUTURE MOBILE APP
 ============================================================
 
 Do not build React Native now.
@@ -2972,8 +2932,7 @@ MCP
 
 All can consume PlanIT application services/API.
 
-============================================================
-87. BACKGROUND PROCESSING
+============================================================ 87. BACKGROUND PROCESSING
 ============================================================
 
 Jobs should handle:
@@ -2989,6 +2948,7 @@ Jobs should handle:
 Future integrations can add integration jobs.
 
 Jobs must be:
+
 - retryable where appropriate
 - idempotent
 - observable
@@ -3023,8 +2983,7 @@ For the current development phase, document the backup/recovery design and
 keep implementation proportional to the environment. Before production, the
 restore path must be tested.
 
-============================================================
-88. PERFORMANCE
+============================================================ 88. PERFORMANCE
 ============================================================
 
 Use:
@@ -3048,8 +3007,7 @@ Avoid:
 
 Measure before optimizing.
 
-============================================================
-89. TESTING
+============================================================ 89. TESTING
 ============================================================
 
 UNIT TESTS:
@@ -3104,8 +3062,7 @@ AI SECURITY TESTS:
 - secret extraction attempt
 - bulk mutation without confirmation
 
-============================================================
-90. NON-NEGOTIABLE AI SECURITY TESTS
+============================================================ 90. NON-NEGOTIABLE AI SECURITY TESTS
 ============================================================
 
 The following MUST fail safely:
@@ -3166,38 +3123,36 @@ The following MUST fail safely:
 
 28. BYOK context selection includes another user's data or PlanIT secrets.
 
-============================================================
-91. SECURITY TEST PRINCIPLE
+============================================================ 91. SECURITY TEST PRINCIPLE
 ============================================================
 
 The correct architecture is:
 
 USER
-  ↓
+↓
 AI UNDERSTANDS
-  ↓
+↓
 AI PROPOSES
-  ↓
+↓
 USER REVIEWS
-  ↓
+↓
 USER CONFIRMS
-  ↓
+↓
 PLANIT BACKEND VALIDATES
-  ↓
+↓
 PLANIT BACKEND EXECUTES
-  ↓
+↓
 ONLY THAT USER'S DATA CHANGES
 
 Never:
 
 USER
-  ↓
+↓
 AI
-  ↓
+↓
 DATABASE
 
-============================================================
-92. DEVELOPMENT PHASES
+============================================================ 92. DEVELOPMENT PHASES
 ============================================================
 
 PHASE 0 — ARCHITECTURE + PROJECT BOOTSTRAP
@@ -3255,6 +3210,7 @@ Establish:
 Do NOT implement major product functionality yet.
 
 Do NOT implement:
+
 - full authentication
 - task management
 - recurring tasks
@@ -3292,6 +3248,7 @@ The application must successfully:
 No fake APIs or placeholder business functionality should be
 created merely to make the application appear complete.
 ------------------------------------------------------------
+
 PHASE 1 — FOUNDATION
 ------------------------------------------------------------
 
@@ -3314,7 +3271,8 @@ Implement:
 Deliver:
 application boots cleanly.
 
-------------------------------------------------------------
+---
+
 PHASE 2 — AUTH
 ------------------------------------------------------------
 
@@ -3334,7 +3292,8 @@ Implement:
 Deliver:
 secure authentication.
 
-------------------------------------------------------------
+---
+
 PHASE 3 — TASKS
 ------------------------------------------------------------
 
@@ -3365,7 +3324,8 @@ Then recurring:
 Deliver:
 reliable task engine.
 
-------------------------------------------------------------
+---
+
 PHASE 4 — FOCUS ENGINE
 ------------------------------------------------------------
 
@@ -3384,7 +3344,8 @@ Implement:
 Deliver:
 reliable focus engine.
 
-------------------------------------------------------------
+---
+
 PHASE 5 — DASHBOARD + INTERNAL CALENDAR
 ------------------------------------------------------------
 
@@ -3404,7 +3365,8 @@ Implement:
 Deliver:
 complete daily workflow.
 
-------------------------------------------------------------
+---
+
 PHASE 6 — STATISTICS
 ------------------------------------------------------------
 
@@ -3423,7 +3385,8 @@ Implement:
 Deliver:
 analytics engine.
 
-------------------------------------------------------------
+---
+
 PHASE 7 — GOALS + SKILLS
 ------------------------------------------------------------
 
@@ -3441,7 +3404,8 @@ Implement:
 Deliver:
 goal + skill system.
 
-------------------------------------------------------------
+---
+
 PHASE 8 — SOCIAL
 ------------------------------------------------------------
 
@@ -3464,7 +3428,8 @@ Implement:
 Deliver:
 privacy-aware social accountability.
 
-------------------------------------------------------------
+---
+
 PHASE 9 — PLANIT AI CORE
 ------------------------------------------------------------
 
@@ -3488,7 +3453,8 @@ Implement:
 Deliver:
 Goal → AI plan → user approval → tasks.
 
-------------------------------------------------------------
+---
+
 PHASE 10 — AI SCHEDULING + REPLANNING
 ------------------------------------------------------------
 
@@ -3508,7 +3474,8 @@ Implement:
 Deliver:
 AI execution assistant.
 
-------------------------------------------------------------
+---
+
 PHASE 11 — BYOK
 ------------------------------------------------------------
 
@@ -3534,7 +3501,8 @@ Implement:
 Deliver:
 privacy-first BYOK.
 
-------------------------------------------------------------
+---
+
 PHASE 12 — PLANIT AI USAGE
 ------------------------------------------------------------
 
@@ -3552,7 +3520,8 @@ Implement:
 Deliver:
 transparent AI usage.
 
-------------------------------------------------------------
+---
+
 PHASE 13 — CONTEXT EXPORT
 ------------------------------------------------------------
 
@@ -3567,7 +3536,8 @@ No credentials.
 Deliver:
 portable PlanIT context.
 
-------------------------------------------------------------
+---
+
 PHASE 14 — MCP
 ------------------------------------------------------------
 
@@ -3583,7 +3553,8 @@ Implement only when explicitly instructed:
 Deliver:
 external AI access without bypassing PlanIT security.
 
-------------------------------------------------------------
+---
+
 PHASE 15+ — EXTERNAL INTEGRATIONS
 ------------------------------------------------------------
 
@@ -3600,8 +3571,7 @@ WhatsApp
 
 Build reusable integration architecture.
 
-============================================================
-93. DEVELOPMENT WORKFLOW FOR CURSOR
+============================================================ 93. DEVELOPMENT WORKFLOW FOR CURSOR
 ============================================================
 
 For EVERY phase:
@@ -3646,8 +3616,7 @@ Do not silently move to the next phase.
 
 STOP after the requested phase.
 
-============================================================
-94. CURSOR DEVELOPMENT RULES
+============================================================ 94. CURSOR DEVELOPMENT RULES
 ============================================================
 
 DO NOT:
@@ -3687,8 +3656,7 @@ DO:
 - meaningful comments
 - clean APIs
 
-============================================================
-95. CODE QUALITY
+============================================================ 95. CODE QUALITY
 ============================================================
 
 Use strict TypeScript.
@@ -3696,6 +3664,7 @@ Use strict TypeScript.
 Avoid "any" except where absolutely unavoidable and documented.
 
 Avoid:
+
 - magic numbers
 - giant classes
 - circular dependencies
@@ -3704,13 +3673,13 @@ Avoid:
 - premature microservices
 
 Prefer:
+
 - simple
 - explicit
 - testable
 - maintainable
 
-============================================================
-96. DATABASE TRANSACTION SAFETY
+============================================================ 96. DATABASE TRANSACTION SAFETY
 ============================================================
 
 Use transactions where multiple changes must succeed/fail together.
@@ -3734,8 +3703,7 @@ Do not partially apply a bulk proposal without handling failure.
 Proposal execution must be idempotent. Replayed requests, retries,
 double-clicks, and job retries must not duplicate mutations.
 
-============================================================
-97. CONCURRENCY
+============================================================ 97. CONCURRENCY
 ============================================================
 
 Handle concurrency safely.
@@ -3749,13 +3717,13 @@ Examples:
 - duplicate recurring occurrences
 
 Use:
+
 - database constraints
 - transactions
 - idempotency keys
 - appropriate locking where needed
 
-============================================================
-98. TIMEZONE HANDLING
+============================================================ 98. TIMEZONE HANDLING
 ============================================================
 
 Store timestamps in UTC.
@@ -3766,6 +3734,7 @@ For recurring tasks and daily statistics:
 calculate according to user's timezone.
 
 Be careful with:
+
 - daylight savings
 - date boundaries
 - weekly boundaries
@@ -3773,29 +3742,30 @@ Be careful with:
 
 Do not assume UTC equals user's day.
 
-============================================================
-99. PROFILE / SOCIAL SECURITY
+============================================================ 99. PROFILE / SOCIAL SECURITY
 ============================================================
 
 Search must respect:
+
 - blocked users
 - privacy
 - hidden profiles
 - user discovery preferences
 
 Leaderboard must respect:
+
 - leaderboard visibility
 - blocked relationships
 - privacy
 
 Do not leak private users through:
+
 - search
 - leaderboard
 - profile suggestions
 - public APIs
 
-============================================================
-100. FUTURE BUSINESS EXPANSION
+============================================================ 100. FUTURE BUSINESS EXPANSION
 ============================================================
 
 Keep architecture extensible for:
@@ -3813,8 +3783,7 @@ Keep architecture extensible for:
 
 But DO NOT implement these in the current build.
 
-============================================================
-101. DEFINITION OF DONE
+============================================================ 101. DEFINITION OF DONE
 ============================================================
 
 A feature is NOT complete when the UI exists.
@@ -3838,18 +3807,19 @@ A feature is complete only when appropriate:
 
 exist.
 
-============================================================
-102. MVP DEFINITION
+============================================================ 102. MVP DEFINITION
 ============================================================
 
 The first production-capable MVP is:
 
 AUTH
+
 - email/password
 - mandatory email OTP
 - Google login
 
 TASKS
+
 - CRUD
 - priorities
 - notes
@@ -3860,6 +3830,7 @@ TASKS
 - filtering
 
 FOCUS
+
 - start
 - pause
 - resume
@@ -3869,6 +3840,7 @@ FOCUS
 - focus history
 
 DASHBOARD
+
 - progress
 - priority progress
 - total focus
@@ -3876,12 +3848,14 @@ DASHBOARD
 - today's tasks
 
 CALENDAR
+
 - internal PlanIT calendar
 - scheduled tasks
 - completed tasks
 - focus history
 
 STATISTICS
+
 - daily
 - weekly
 - monthly
@@ -3889,16 +3863,19 @@ STATISTICS
 - personal records
 
 GOALS
+
 - goals
 - milestones
 - linked tasks
 - progress
 
 SKILLS
+
 - manual skills
 - time by skill
 
 SOCIAL
+
 - profile
 - field-level privacy
 - friends
@@ -3907,6 +3884,7 @@ SOCIAL
 - leaderboard
 
 AI
+
 - Ask PlanIT
 - goal → plan
 - task proposals
@@ -3916,6 +3894,7 @@ AI
 - prompt injection defenses
 
 BYOK
+
 - optional
 - browser memory only
 - never persisted
@@ -3923,12 +3902,12 @@ BYOK
 - usage display where available
 
 THEME
+
 - light
 - dark
 - system
 
-============================================================
-103. FINAL ARCHITECTURAL RULE
+============================================================ 103. FINAL ARCHITECTURAL RULE
 ============================================================
 
 The architecture must always preserve this hierarchy:
