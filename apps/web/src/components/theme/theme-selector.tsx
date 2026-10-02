@@ -1,16 +1,34 @@
 'use client';
 
 import { cn } from '@planit/ui/lib/cn';
+import { useState } from 'react';
 
 import { THEME_OPTIONS } from '@/components/theme/theme-options';
+import { ApiError } from '@/lib/api/api-client';
+import { persistThemePreference } from '@/lib/theme/persist-theme';
 import { useTheme } from '@/lib/theme/use-theme';
+import type { ThemePreference } from '@/lib/theme/theme-store';
 
 /** Native radio inputs give keyboard navigation and screen-reader semantics for free. */
 export function ThemeSelector() {
-  const { preference, setPreference } = useTheme();
+  const { preference } = useTheme();
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  async function select(value: ThemePreference) {
+    setError(null);
+    setSaving(true);
+    try {
+      await persistThemePreference(value);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not save the theme.');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
-    <fieldset className="grid gap-3">
+    <fieldset className="grid gap-3" aria-busy={saving}>
       <legend className="sr-only">Theme</legend>
       <div className="grid grid-cols-3 gap-3">
         {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
@@ -27,7 +45,9 @@ export function ThemeSelector() {
               name="theme"
               value={value}
               checked={preference === value}
-              onChange={() => setPreference(value)}
+              onChange={() => {
+                void select(value);
+              }}
               className="sr-only"
             />
             <Icon className="size-5" aria-hidden="true" />
@@ -35,6 +55,11 @@ export function ThemeSelector() {
           </label>
         ))}
       </div>
+      {error ? (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      ) : null}
     </fieldset>
   );
 }

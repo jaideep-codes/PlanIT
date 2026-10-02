@@ -1,7 +1,7 @@
 # API
 
-> Implemented: `GET /api/health`, `GET /api/health/ready`, the global conventions below.
-> Route groups for later phases are listed as **planned**.
+> Implemented: health checks, Phase 2 Part 1 auth, and the Part 2 account routes below.
+> Remaining route groups are listed as **planned**.
 
 ## Conventions
 
@@ -87,26 +87,80 @@ Never touches dependencies. Not rate-limited. Not request-logged.
 Contracts: `@planit/types` (`LivenessResponse`, `ReadinessResponse`); runtime schemas:
 `@planit/shared` (`livenessResponseSchema`, `readinessResponseSchema`).
 
+### Auth (Phase 2 Part 1)
+
+All six routes are public (`@Public()`), require `Content-Type: application/json` and an allowed
+`Origin`, and have named Redis rate limits that fail closed. Bodies are strict objects. Responses
+are `AuthAcknowledgement` (`@planit/types`); tokens are cookies, never JSON. `passwordHash` is
+never returned.
+
+| Method | Path                      | Success                                             |
+| ------ | ------------------------- | --------------------------------------------------- |
+| POST   | `/api/v1/auth/signup`     | `201 { "status": "verification_required" }`         |
+| POST   | `/api/v1/auth/otp/verify` | `200 { "status": "verified" }`                      |
+| POST   | `/api/v1/auth/otp/resend` | `200 { "status": "verification_required" }`         |
+| POST   | `/api/v1/auth/login`      | `200 { "status": "authenticated" }` + cookies       |
+| POST   | `/api/v1/auth/refresh`    | `200 { "status": "authenticated" }` + cookies       |
+| POST   | `/api/v1/auth/logout`     | `200 { "status": "logged_out" }` and clears cookies |
+
+Signup and login use the same message for an unknown email (`401` "Invalid email or password."
+on login; signup always returns the verification acknowledgement). A correct password on an
+unverified account is `403` "Verify your email before signing in." Refresh and logout send `{}`.
+The access cookie is `__Host-planit_access` (`Path=/`); the refresh cookie is `planit_refresh`
+(`Path=/api/v1/auth`).
+
+Schemas: `signupRequestSchema`, `loginRequestSchema`, `otpVerifyRequestSchema`,
+`otpResendRequestSchema`, `emptyRequestSchema`, `authAcknowledgementSchema` in `@planit/shared`.
+
+### Password reset, sessions, and the current user (Phase 2 Part 2)
+
+Password reset is public. Session and profile routes require a session cookie. Bodies are strict
+objects. A reset code is entered by the person; it is never put in a URL.
+
+| Method | Path                                  | Success                                                                                  |
+| ------ | ------------------------------------- | ---------------------------------------------------------------------------------------- |
+| POST   | `/api/v1/auth/password/forgot`        | `200 { "status": "reset_requested" }` for every email when the Redis limits allow it     |
+| POST   | `/api/v1/auth/password/reset`         | `200 { "status": "password_reset" }`, revokes every session, and clears cookies          |
+| GET    | `/api/v1/auth/sessions`               | `{ "items": [...], "nextCursor": null }` of the caller's live sessions                   |
+| DELETE | `/api/v1/auth/sessions/:id`           | `{ "status": "revoked", "currentSessionRevoked": boolean }`. Another user's id is `404`. |
+| POST   | `/api/v1/auth/sessions/revoke-others` | `{ "status": "revoked", "currentSessionRevoked": false }`                                |
+| GET    | `/api/v1/users/me`                    | the owner projection below                                                               |
+| PATCH  | `/api/v1/users/me`                    | the same projection. Accepts only `displayName` and `timezone`.                          |
+| PATCH  | `/api/v1/users/me/theme`              | the same projection. Accepts only `theme` (`light`, `dark`, or `system`).                |
+
+`GET /api/v1/users/me` returns `id`, `email`, `displayName`, `timezone`, `emailVerifiedAt`,
+`theme`, and `createdAt`. It never returns `passwordHash`. Session items are `id`, `createdAt`,
+`lastUsedAt`, `expiresAt`, `userAgent`, and `current`. They never include a token or token hash.
+
+Forgot-password limits: one request per email per 60 seconds, and five per email per hour, plus
+coarser per-IP limits. Both are Redis counters checked before the account lookup (decision D-032).
+The reset route uses the same OTP expiry, five-attempt lock, and hourly cap as verification.
+Redis failures on these routes are `503`.
+
+Schemas: `passwordForgotRequestSchema`, `passwordResetRequestSchema`, `sessionIdSchema`,
+`authSessionListSchema`, `sessionRevocationSchema`, `updateCurrentUserRequestSchema`,
+`updateThemeRequestSchema`, `currentUserSchema` in `@planit/shared`.
+
 ## Planned route groups
 
 All are under `/api/v1`, authenticated unless noted, and owner-scoped.
 
-| Group               | Phase | Highlights                                                                                                                                                                                                                                                                      |
-| ------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/auth`             | 2     | `POST signup`, `POST otp/verify`, `POST otp/resend`, `POST login`, `POST refresh`, `POST logout`, `GET google/start`, `GET google/callback`, `POST password/forgot`, `POST password/reset`, `GET sessions`, `DELETE sessions/:id`. Public routes have strict named rate limits. |
-| `/users/me`         | 2     | current user (safe projection, never `passwordHash`), update profile basics, timezone                                                                                                                                                                                           |
-| `/settings`         | 2+    | preferences (`theme`, `weekStartsOn`, …), notification preferences                                                                                                                                                                                                              |
-| `/tasks`            | 3     | CRUD, `POST :id/complete`, `POST :id/reopen`, `PATCH :id/position` (fractional index), filters: `status`, `priority`, `due`, `scheduledFrom/To`                                                                                                                                 |
-| `/recurring-tasks`  | 3     | CRUD series, `POST :id/occurrences/:date/skip`, `PATCH …/occurrences/:date`, `POST :id/stop`                                                                                                                                                                                    |
-| `/focus`            | 4     | `POST start`, `POST :id/pause`, `POST :id/resume`, `POST :id/stop`, `POST :id/cancel`, `GET active`, `GET sessions` (cursor)                                                                                                                                                    |
-| `/calendar`         | 5     | `GET ?from=&to=&view=day                                                                                                                                                                                                                                                        | week                         | month`: scheduled tasks, occurrences, focus history |
-| `/statistics`       | 6     | `GET daily                                                                                                                                                                                                                                                                      | weekly                       | monthly                                             | summary              | heatmap | records                      | streak` |
-| `/goals`, `/skills` | 7     | CRUD, milestones, task links, skill assignment, skill time                                                                                                                                                                                                                      |
-| `/profiles`         | 8     | `GET :username` (assembled per viewer: anonymous, user, friend, owner, blocked), `GET me/preview?as=public                                                                                                                                                                      | friend`, visibility settings |
-| `/friends`          | 8     | search (privacy- and block-aware), requests, accept/decline, remove, block/unblock                                                                                                                                                                                              |
-| `/leaderboards`     | 8     | `GET ?scope=friends                                                                                                                                                                                                                                                             | global&period=daily          | weekly                                              | monthly&metric=focus | streak  | tasks`→`{ top, me, nearby }` |
-| `/notifications`    | 5+    | list (cursor), mark read                                                                                                                                                                                                                                                        |
-| `/ai`               | 9     | `POST chat` (streamed), `GET context/preview?scope=` (exactly what would be shared)                                                                                                                                                                                             |
-| `/ai/proposals`     | 9     | `POST` (validate+persist a proposal), `GET :id`, `POST :id/approve` (with `payloadHash` + `Idempotency-Key`), `POST :id/reject`                                                                                                                                                 |
-| `/ai/usage`         | 12    | managed-AI usage and remaining allowance; BYOK records are informational                                                                                                                                                                                                        |
-| `/me/export`        | 13    | context export (Markdown, JSON, plain text), with no credentials                                                                                                                                                                                                                |
+| Group               | Phase | Highlights                                                                                                                                      |
+| ------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/auth`             | 2     | Still to build: `GET google/start`, `GET google/callback`. Password reset and session list/revoke are implemented above.                        |
+| `/users/me`         | 2     | Implemented above. Further profile fields (username, bio, privacy) are Phase 8.                                                                 |
+| `/settings`         | 2+    | `weekStartsOn` and notification preferences. Theme is `PATCH /users/me/theme`.                                                                  |
+| `/tasks`            | 3     | CRUD, `POST :id/complete`, `POST :id/reopen`, `PATCH :id/position` (fractional index), filters: `status`, `priority`, `due`, `scheduledFrom/To` |
+| `/recurring-tasks`  | 3     | CRUD series, `POST :id/occurrences/:date/skip`, `PATCH …/occurrences/:date`, `POST :id/stop`                                                    |
+| `/focus`            | 4     | `POST start`, `POST :id/pause`, `POST :id/resume`, `POST :id/stop`, `POST :id/cancel`, `GET active`, `GET sessions` (cursor)                    |
+| `/calendar`         | 5     | `GET ?from=&to=&view=day                                                                                                                        | week                         | month`: scheduled tasks, occurrences, focus history |
+| `/statistics`       | 6     | `GET daily                                                                                                                                      | weekly                       | monthly                                             | summary              | heatmap | records                      | streak` |
+| `/goals`, `/skills` | 7     | CRUD, milestones, task links, skill assignment, skill time                                                                                      |
+| `/profiles`         | 8     | `GET :username` (assembled per viewer: anonymous, user, friend, owner, blocked), `GET me/preview?as=public                                      | friend`, visibility settings |
+| `/friends`          | 8     | search (privacy- and block-aware), requests, accept/decline, remove, block/unblock                                                              |
+| `/leaderboards`     | 8     | `GET ?scope=friends                                                                                                                             | global&period=daily          | weekly                                              | monthly&metric=focus | streak  | tasks`→`{ top, me, nearby }` |
+| `/notifications`    | 5+    | list (cursor), mark read                                                                                                                        |
+| `/ai`               | 9     | `POST chat` (streamed), `GET context/preview?scope=` (exactly what would be shared)                                                             |
+| `/ai/proposals`     | 9     | `POST` (validate+persist a proposal), `GET :id`, `POST :id/approve` (with `payloadHash` + `Idempotency-Key`), `POST :id/reject`                 |
+| `/ai/usage`         | 12    | managed-AI usage and remaining allowance; BYOK records are informational                                                                        |
+| `/me/export`        | 13    | context export (Markdown, JSON, plain text), with no credentials                                                                                |

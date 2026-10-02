@@ -6,6 +6,7 @@ import type { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 
+import { createMutationGuard } from '../common/http/mutation-guard.js';
 import { REQUEST_ID_HEADER } from '../common/logging/request-id.js';
 import type { Env } from '../config/env.js';
 
@@ -50,6 +51,7 @@ export function configureApp(app: NestExpressApplication): void {
     maxAge: 600,
   });
 
+  app.use(createMutationGuard(config.get('WEB_ORIGINS', { infer: true })));
   app.useBodyParser('json', { limit: JSON_BODY_LIMIT });
 
   app.setGlobalPrefix(API_PREFIX);

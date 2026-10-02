@@ -2,7 +2,7 @@
 
 import { Button } from '@planit/ui/components/button';
 import { cn } from '@planit/ui/lib/cn';
-import { Sparkles } from 'lucide-react';
+import { LogOut, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -57,7 +57,12 @@ export function Sidebar() {
       </nav>
 
       <div className="flex items-center justify-between border-t px-5 py-3">
-        <span className="text-xs text-muted-foreground">Appearance</span>
+        <Button asChild variant="ghost" size="sm">
+          <Link href="/logout">
+            <LogOut aria-hidden="true" />
+            Log out
+          </Link>
+        </Button>
         <ThemeToggle />
       </div>
     </aside>

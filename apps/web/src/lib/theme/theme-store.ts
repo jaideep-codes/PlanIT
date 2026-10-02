@@ -1,10 +1,12 @@
 /**
- * Theme preference store. Until accounts exist the preference lives in localStorage as a UI
- * cache; from Phase 2 the authoritative value is UserPreference.theme and this store mirrors
- * it so the correct theme is applied before first paint.
+ * First-paint theme cache. The signed-in shell copies `UserPreference.theme` into this store.
+ * The inline script below reads the same key before React so the first paint matches.
  *
  * The same logic is duplicated (by necessity) in THEME_INIT_SCRIPT, which runs before React.
  */
+
+/** Set once the person picks a theme in this page view, so a late server read cannot overwrite it. */
+let userAdjusted = false;
 
 export const THEME_PREFERENCES = ['light', 'dark', 'system'] as const;
 export type ThemePreference = (typeof THEME_PREFERENCES)[number];
@@ -42,13 +44,29 @@ export function readSystemPrefersDark(): boolean {
   return window.matchMedia(DARK_SCHEME_QUERY).matches;
 }
 
-export function setThemePreference(preference: ThemePreference): void {
+function writeThemePreference(preference: ThemePreference): void {
   try {
     window.localStorage.setItem(THEME_STORAGE_KEY, preference);
   } catch {
     // Still apply for this page view even if it cannot be persisted.
   }
   listeners.forEach((listener) => listener());
+}
+
+export function setThemePreference(preference: ThemePreference): void {
+  userAdjusted = true;
+  writeThemePreference(preference);
+}
+
+/** Applies the database preference unless the person already changed it on this page. */
+export function applyAuthoritativeTheme(preference: ThemePreference): void {
+  if (userAdjusted) return;
+  writeThemePreference(preference);
+}
+
+/** Clears the in-memory "user already chose" flag. Tests use this between cases. */
+export function resetThemeUserAdjustment(): void {
+  userAdjusted = false;
 }
 
 export function subscribeToThemePreference(listener: () => void): () => void {

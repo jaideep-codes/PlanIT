@@ -3,8 +3,10 @@ import { SkipThrottle } from '@nestjs/throttler';
 import type { LivenessResponse, ReadinessResponse } from '@planit/types';
 import type { Response } from 'express';
 
+import { Public } from '../../common/auth/public.decorator.js';
 import { HealthService } from './health.service.js';
 
+@Public()
 @Controller({ path: 'health', version: VERSION_NEUTRAL })
 export class HealthController {
   constructor(private readonly health: HealthService) {}

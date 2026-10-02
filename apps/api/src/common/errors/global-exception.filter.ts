@@ -2,6 +2,7 @@ import { type ArgumentsHost, Catch, type ExceptionFilter } from '@nestjs/common'
 import type { Request, Response } from 'express';
 import { PinoLogger } from 'nestjs-pino';
 
+import { RateLimitedException } from './rate-limited.exception.js';
 import { toErrorResponse } from './error-response.js';
 
 @Catch()
@@ -24,6 +25,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
 
     if (response.headersSent) return;
+    if (exception instanceof RateLimitedException) {
+      response.setHeader(
+        'Retry-After',
+        String(Math.max(1, Math.ceil(exception.retryAfterSeconds))),
+      );
+    }
     response.status(status).json(body);
   }
 }

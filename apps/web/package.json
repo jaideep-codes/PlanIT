@@ -13,6 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@hookform/resolvers": "5.2.2",
     "@planit/shared": "workspace:*",
     "@planit/types": "workspace:*",
     "@planit/ui": "workspace:*",
@@ -22,6 +23,7 @@
     "next": "16.3.8",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "react-hook-form": "7.65.0",
     "zod": "4.6.5"
   },
   "devDependencies": {

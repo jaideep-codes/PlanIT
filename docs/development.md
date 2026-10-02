@@ -4,7 +4,7 @@
 
 - Node.js **24 LTS** (`.nvmrc`); `engine-strict` rejects older versions.
 - pnpm **9.15** (`npm i -g pnpm@9` if `corepack enable` is not permitted on your machine).
-- Docker with Compose v2+ (PostgreSQL 17 and Redis 7.4 for local development).
+- Docker with Compose v2+ (PostgreSQL 17, Redis 7.4, and Mailpit for local development).
 
 ## First-time setup
 
@@ -12,10 +12,14 @@
 pnpm install
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env.local
-pnpm services:up            # Postgres (planit + planit_test) and Redis, waits for health
+pnpm services:up            # Postgres (planit + planit_test), Redis, and Mailpit
 pnpm db:migrate:deploy      # apply migrations to the dev database
-pnpm dev                    # web http://localhost:3000, API http://127.0.0.1:4000
+pnpm dev                    # web http://localhost:3000, API http://127.0.0.1:4000, and the worker
 ```
+
+Mailpit accepts SMTP on `127.0.0.1:1025` and shows messages at <http://127.0.0.1:8025>. Signup,
+resend, and password reset enqueue a sealed email job; the worker started by `pnpm dev` sends it.
+In production the worker is a separate process: `node dist/worker.js`.
 
 Prepare the e2e database once (and after adding migrations):
 
@@ -27,7 +31,7 @@ DATABASE_URL=postgresql://planit:planit_dev_password@127.0.0.1:5432/planit_test 
 
 | Command                                                 | What it does                                                                                            |
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `pnpm dev`                                              | build shared packages, generate Prisma client, run web + API in watch mode                              |
+| `pnpm dev`                                              | build shared packages, generate Prisma client, run web, API, and the email worker in watch mode         |
 | `pnpm build`                                            | production builds of all packages and apps                                                              |
 | `pnpm lint`                                             | ESLint (type-aware) everywhere                                                                          |
 | `pnpm typecheck`                                        | `tsc --noEmit` everywhere (web runs `next typegen` first)                                               |
@@ -91,7 +95,7 @@ so a deploy never requires downtime.
 | ------------------- | ------------------------------------------- | ------------------------------------------------------------- |
 | Unit                | Vitest (+ SWC for Nest), jsdom for UI       | pure logic, services with fakes, components, schemas          |
 | API integration/e2e | Vitest + supertest, real Postgres and Redis | HTTP stack, guards, ownership/IDOR, constraints, transactions |
-| Browser E2E         | Playwright (from Phase 2)                   | auth flows, critical journeys, BYOK network assertions        |
+| Browser E2E         | Playwright (Phase 2 Part 4, not started)    | auth flows, critical journeys, BYOK network assertions        |
 | Static              | ESLint (boundaries), typecheck, audit       | architecture rules, type safety, dependency vulnerabilities   |
 
 Every user-owned resource gets an integration test proving another user cannot read, update or

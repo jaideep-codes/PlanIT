@@ -3,10 +3,12 @@ import type { ReactNode } from 'react';
 import { MobileHeader } from '@/components/app-shell/mobile-header';
 import { MobileTabBar } from '@/components/app-shell/mobile-tab-bar';
 import { Sidebar } from '@/components/app-shell/sidebar';
+import { AccountThemeSync } from '@/components/theme/account-theme-sync';
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-dvh">
+      <AccountThemeSync />
       <a
         href="#main"
         className="sr-only z-50 rounded-md bg-primary px-4 py-2 text-primary-foreground focus:not-sr-only focus:fixed focus:top-3 focus:left-3"

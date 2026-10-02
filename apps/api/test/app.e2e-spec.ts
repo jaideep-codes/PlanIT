@@ -63,6 +63,7 @@ describe('API foundation (e2e)', () => {
   it('returns the standard error envelope for malformed JSON without parser details', async () => {
     const response = await request(app.getHttpServer())
       .post('/api/v1/anything')
+      .set('Origin', 'http://localhost:3000')
       .set('Content-Type', 'application/json')
       .send('{"broken":')
       .expect(400);

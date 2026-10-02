@@ -8,6 +8,8 @@ import {
 import type { Metadata } from 'next';
 
 import { PageHeader } from '@/components/page-header';
+import { ProfileForm } from '@/components/settings/profile-form';
+import { SessionList } from '@/components/settings/session-list';
 import { SystemStatus } from '@/components/settings/system-status';
 import { ThemeSelector } from '@/components/theme/theme-selector';
 
@@ -36,6 +38,26 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent>
             <SystemStatus />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Profile</CardTitle>
+            <CardDescription>Your display name and the timezone used for your day.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ProfileForm />
+          </CardContent>
+        </Card>
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Sessions</CardTitle>
+            <CardDescription>
+              Devices that can stay signed in. Signing out leaves the other sessions unchanged.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SessionList />
           </CardContent>
         </Card>
       </div>

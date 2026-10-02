@@ -6,6 +6,12 @@ const validEnv = {
   DATABASE_URL: 'postgresql://planit:secret-password@localhost:5432/planit',
   REDIS_URL: 'redis://:secret-redis@localhost:6379/0',
   WEB_ORIGINS: 'http://localhost:3000, http://127.0.0.1:3000',
+  JWT_SIGNING_KEY: 'bG9jYWwtZGV2LWp3dC1zaWduaW5nLWtleS0zMmJ5dGU=',
+  OTP_PEPPER: 'bG9jYWwtZGV2LW90cC1wZXBwZXItdmFsdWUtMzJieXQ=',
+  OTP_JOB_ENCRYPTION_KEY: 'bG9jYWwtZGV2LW90cC1qb2Ita2V5LTMyLWJ5dGVzISE=',
+  SMTP_HOST: '127.0.0.1',
+  SMTP_PORT: '1025',
+  SMTP_FROM: 'PlanIT <noreply@planit.local>',
 };
 
 describe('validateEnv', () => {
@@ -41,6 +47,16 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ ...validEnv, NODE_ENV: 'production' })).toThrow(
       /WEB_ORIGINS: must use https in production/,
     );
+  });
+
+  it('rejects a signing key that is not 32 bytes and does not echo it', () => {
+    const leaked = 'this-is-not-valid-base64-key-material';
+    expect(() => validateEnv({ ...validEnv, JWT_SIGNING_KEY: leaked })).toThrow(/JWT_SIGNING_KEY/);
+    try {
+      validateEnv({ ...validEnv, JWT_SIGNING_KEY: leaked });
+    } catch (error) {
+      expect((error as Error).message).not.toContain(leaked);
+    }
   });
 
   it('never echoes configuration values in error messages', () => {

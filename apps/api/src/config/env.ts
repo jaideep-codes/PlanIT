@@ -17,6 +17,19 @@ function parseTrustProxy(value: string): TrustProxySetting {
   return value.trim();
 }
 
+/** Base64 that decodes to exactly `size` bytes. The error names the rule, never the value. */
+function base64Bytes(size: number) {
+  return z.string().superRefine((value, ctx) => {
+    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(value)) {
+      ctx.addIssue({ code: 'custom', message: `must be base64 encoding ${size} bytes` });
+      return;
+    }
+    if (Buffer.from(value, 'base64').length !== size) {
+      ctx.addIssue({ code: 'custom', message: `must decode to ${size} bytes` });
+    }
+  });
+}
+
 const originList = z
   .string()
   .transform((value) =>
@@ -41,6 +54,17 @@ export const envSchema = z
     TRUST_PROXY: z.string().default('false').transform(parseTrustProxy),
     RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
     RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(120),
+    /** HMAC key for access tokens. 32 bytes, base64. */
+    JWT_SIGNING_KEY: base64Bytes(32),
+    /** HMAC pepper for OTP codes. 32 bytes, base64. Also keys IP address hashes. */
+    OTP_PEPPER: base64Bytes(32),
+    /** AES-256-GCM key for queued email payloads. 32 bytes, base64. */
+    OTP_JOB_ENCRYPTION_KEY: base64Bytes(32),
+    SMTP_HOST: z.string().min(1),
+    SMTP_PORT: z.coerce.number().int().min(1).max(65_535),
+    SMTP_FROM: z.string().min(3),
+    SMTP_USER: z.string().optional().default(''),
+    SMTP_PASSWORD: z.string().optional().default(''),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'production') return;

@@ -1,8 +1,8 @@
 # Database schema
 
-> Implemented today: `User`, `UserPreference` (migration `20261001194243_init_identity`).
-> Everything else below is the **planned** schema, introduced by the phase noted. Field lists are
-> the contract; exact column types are finalised in each phase's migration.
+> Implemented today: `User`, `UserPreference` (`20261001194243_init_identity`) and the credential
+> tables in `20261001222857_auth_credentials`. Everything else below is the **planned** schema.
+> Field lists are the contract; exact column types are finalised in each phase's migration.
 
 ## Conventions
 
@@ -25,20 +25,20 @@
 
 ### `users`
 
-| Column            | Type         | Notes                                                                            |
-| ----------------- | ------------ | -------------------------------------------------------------------------------- |
-| id                | uuid PK      | UUIDv7                                                                           |
-| email             | varchar(320) | unique; CHECK `email = lower(btrim(email))`                                      |
-| password_hash     | text null    | Argon2id; null for Google-only accounts; **never serialised**                    |
-| email_verified_at | timestamptz  | null until OTP verification; unverified accounts cannot use the product          |
-| username          | varchar(30)  | unique, nullable until onboarding; CHECK `^[a-z0-9_]{3,30}$`                     |
-| display_name      | varchar(50)  |                                                                                  |
-| avatar_id         | varchar(64)  | predefined avatar identifier; no uploads                                         |
-| bio               | varchar(280) | untrusted user content (AI prompt-injection surface)                             |
-| birthday          | date         | sensitive; private by default                                                    |
-| country           | char(2)      | ISO 3166-1 alpha-2; CHECK `^[A-Z]{2}$`                                           |
-| timezone          | varchar(64)  | IANA name, default `UTC`; validated against `Intl.supportedValuesOf('timeZone')` |
-| status            | UserStatus   | `ACTIVE`, `SUSPENDED`, `PENDING_DELETION`                                        |
+| Column            | Type         | Notes                                                                      |
+| ----------------- | ------------ | -------------------------------------------------------------------------- |
+| id                | uuid PK      | UUIDv7                                                                     |
+| email             | varchar(320) | unique; CHECK `email = lower(btrim(email))`                                |
+| password_hash     | text null    | Argon2id; null for Google-only accounts; **never serialised**              |
+| email_verified_at | timestamptz  | null until OTP verification; unverified accounts cannot use the product    |
+| username          | varchar(30)  | unique, nullable until onboarding; CHECK `^[a-z0-9_]{3,30}$`               |
+| display_name      | varchar(50)  |                                                                            |
+| avatar_id         | varchar(64)  | predefined avatar identifier; no uploads                                   |
+| bio               | varchar(280) | untrusted user content (AI prompt-injection surface)                       |
+| birthday          | date         | sensitive; private by default                                              |
+| country           | char(2)      | ISO 3166-1 alpha-2; CHECK `^[A-Z]{2}$`                                     |
+| timezone          | varchar(64)  | IANA name, default `UTC`; validated with `Intl.DateTimeFormat` (see D-033) |
+| status            | UserStatus   | `ACTIVE`, `SUSPENDED`, `PENDING_DELETION`                                  |
 
 ### `user_preferences` (1:1 with users, PK = user_id)
 
@@ -48,24 +48,30 @@
 `notification_preferences` / `planning_preferences` (JSONB objects, CHECK `jsonb_typeof = 'object'`,
 schema-versioned and validated by Zod in `@planit/shared`).
 
+## Implemented (Phase 2 Part 1)
+
+Migration `20261001222857_auth_credentials`. Password reset uses the `PASSWORD_RESET` OTP purpose
+and session revoke reason from that migration. Google login is not built; `oauth_accounts` is in
+place so Part 3 does not need another migration (decision D-030).
+
+- **`auth_sessions`**: `id, user_id, family_id, refresh_token_hash` (unique SHA-256 hex),
+  `expires_at, revoked_at?, revoked_reason? (LOGOUT | ROTATED | REUSE | PASSWORD_RESET),
+replaced_by_id?, user_agent, created_at, last_used_at`. One row per refresh-token generation.
+  CHECKs: hash is 64 hex characters; `revoked_at` and `revoked_reason` are both null or both set.
+  Indexes: `(user_id, created_at)`, `(family_id)`.
+- **`email_otps`**: `id, user_id?, email, purpose (EMAIL_VERIFICATION | PASSWORD_RESET),
+code_hash` (HMAC-SHA256 hex), `expires_at, attempts, consumed_at?, created_at`. CHECKs: email
+  is normalised, hash is 64 hex characters, attempts are 0–5. Index `(email, purpose, created_at)`.
+  A maintenance job deletes a row only after `expires_at` plus 24 hours.
+- **`oauth_accounts`**: `id, user_id, provider (GOOGLE), provider_account_id, created_at`; unique
+  `(provider, provider_account_id)`. Unused until Part 3.
+- **`audit_logs`** (append-only via a trigger that rejects `UPDATE` and `DELETE`): `id, user_id?
+(ON DELETE SET NULL), actor_type (USER | SYSTEM | AI_PROPOSAL), action, target_type?, target_id?,
+metadata` (JSONB object), `request_id?, ip_hash?, created_at`. CHECKs: action matches
+  `^[a-z0-9_.]+$`, metadata is an object, `ip_hash` is hex or null. Index `(user_id, created_at)`.
+- **`user_plans`**: `user_id` PK, `plan (FREE | PRO)`, `valid_until?`. Signup inserts `FREE`.
+
 ## Planned
-
-### Phase 2: authentication and audit
-
-- **AuthSession**: `id, userId, familyId, refreshTokenHash (unique, SHA-256), expiresAt,
-revokedAt?, revokedReason?, replacedById?, userAgent (truncated), createdAt, lastUsedAt`.
-  One row per refresh-token generation. Rotation creates a new row in the same family; presenting
-  a revoked or replaced token revokes the whole family (reuse detection). Index: `(userId)`,
-  `(familyId)`.
-- **EmailOtp**: `id, userId?, email, purpose (EMAIL_VERIFICATION | PASSWORD_RESET), codeHash
-(HMAC-SHA256 with server pepper), expiresAt, attempts, consumedAt?, createdAt`. Index:
-  `(email, purpose, createdAt)`. Cleaned up by a maintenance job.
-- **OAuthAccount**: `id, userId, provider (GOOGLE), providerAccountId, createdAt`; unique
-  `(provider, providerAccountId)`.
-- **AuditLog** (append-only): `id, userId?, actorType (USER | SYSTEM | AI_PROPOSAL), action,
-targetType?, targetId?, metadata JSONB (never secrets), requestId, ipHash?, createdAt`.
-  Index: `(userId, createdAt)`.
-- **UserPlan** (entitlements): `userId PK, plan (FREE | PRO), validUntil?`.
 
 ### Phase 3: tasks and recurrence
 

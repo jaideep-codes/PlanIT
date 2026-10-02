@@ -1,10 +1,16 @@
 import { type NextRequest, NextResponse } from 'next/server';
 
+import { ACCESS_COOKIE_NAME, authRedirectPath } from '@/lib/auth/route-guard';
 import { buildContentSecurityPolicy, generateNonce, NONCE_HEADER } from '@/lib/security/csp';
 
+function withPolicy(response: NextResponse, policy: string): NextResponse {
+  response.headers.set('Content-Security-Policy', policy);
+  return response;
+}
+
 /**
- * Runs before every page render. Today it only attaches a fresh CSP nonce; Phase 2 adds
- * session-cookie route protection here. Authorization is still always enforced by the API.
+ * Attaches a CSP nonce and sends anonymous visits to the app shell to the login page.
+ * That redirect is UX only. Every API route is still enforced by the session guard.
  */
 export function proxy(request: NextRequest) {
   const nonce = generateNonce();
@@ -18,9 +24,16 @@ export function proxy(request: NextRequest) {
   // Next.js reads the nonce from this request header and applies it to its own scripts.
   requestHeaders.set('Content-Security-Policy', policy);
 
+  const redirectPath = authRedirectPath(
+    request.nextUrl.pathname,
+    request.cookies.has(ACCESS_COOKIE_NAME),
+  );
+  if (redirectPath) {
+    return withPolicy(NextResponse.redirect(new URL(redirectPath, request.url)), policy);
+  }
+
   const response = NextResponse.next({ request: { headers: requestHeaders } });
-  response.headers.set('Content-Security-Policy', policy);
-  return response;
+  return withPolicy(response, policy);
 }
 
 export const config = {

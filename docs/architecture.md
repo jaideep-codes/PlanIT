@@ -71,7 +71,7 @@ apps/
       app/             routes; (app)/ group holds the authenticated shell
       components/      feature and shell components
       lib/             api client, query client, theme, security (CSP)
-      proxy.ts         per-request CSP nonce; session route guard from Phase 2
+      proxy.ts         per-request CSP nonce; UX redirect to login when the access cookie is absent
 packages/
   types/               compile-time API contracts (no runtime code)
   shared/              runtime code shared by web and API: error codes, Zod schemas
@@ -86,7 +86,7 @@ Dependency direction: `apps/*` → `packages/{ui,shared}` → `packages/types`; 
 
 ## 4. Backend: modular monolith
 
-One deployable API process (plus, from Phase 2, a worker process from the same codebase).
+One deployable API process plus a worker process from the same codebase (`apps/api/src/worker.ts`).
 No microservices.
 
 ### Layering inside a domain module
@@ -111,27 +111,30 @@ Rules (enforced by review; the first two also by ESLint in `apps/api/eslint.conf
 
 ### Module map
 
-| Module                      | Phase | Responsibility                                                 |
-| --------------------------- | ----- | -------------------------------------------------------------- |
-| Health                      | 1 ✅  | liveness/readiness                                             |
-| Auth                        | 2     | signup, OTP, login, Google OAuth, sessions, password reset     |
-| Users / Profile / Privacy   | 2, 8  | user record, profile, field-level visibility                   |
-| Audit                       | 2     | append-only audit log of security-relevant events              |
-| Tasks / RecurringTasks      | 3     | task engine, recurrence rules, occurrence materialization      |
-| Focus                       | 4     | server-authoritative focus sessions                            |
-| Calendar                    | 5     | read model over scheduled tasks, occurrences and focus history |
-| Statistics                  | 6     | aggregates, records, streaks, heatmap                          |
-| Goals / Skills              | 7     | goals, milestones, task links, skills, skill time              |
-| Friends / Leaderboards      | 8     | friend graph, blocking, privacy-aware rankings                 |
-| Notifications               | 5+    | in-app notifications and preferences                           |
-| AI / AIUsage / Entitlements | 9–12  | assistant, proposals, usage limits, plan entitlements          |
+| Module                      | Phase | Responsibility                                                                                |
+| --------------------------- | ----- | --------------------------------------------------------------------------------------------- |
+| Health                      | 1 ✅  | liveness/readiness                                                                            |
+| Auth                        | 2 🟡  | Signup, OTP, login, logout, password reset, rotating sessions, session revoke. Google remains |
+| Users / Profile / Privacy   | 2, 8  | current user (display name, timezone, theme). Public profiles remain                          |
+| Audit                       | 2 🟡  | append-only log; signup, login, logout, refresh reuse, password reset, session revoke         |
+| Entitlements                | 2 🟡  | reads `UserPlan`; `can(userId, 'pro')` is false on FREE. No Pro features                      |
+| Tasks / RecurringTasks      | 3     | task engine, recurrence rules, occurrence materialization                                     |
+| Focus                       | 4     | server-authoritative focus sessions                                                           |
+| Calendar                    | 5     | read model over scheduled tasks, occurrences and focus history                                |
+| Statistics                  | 6     | aggregates, records, streaks, heatmap                                                         |
+| Goals / Skills              | 7     | goals, milestones, task links, skills, skill time                                             |
+| Friends / Leaderboards      | 8     | friend graph, blocking, privacy-aware rankings                                                |
+| Notifications               | 5+    | in-app notifications and preferences                                                          |
+| AI / AIUsage / Entitlements | 9–12  | assistant, proposals, usage limits, plan entitlements                                         |
 
 ### HTTP stack (implemented)
 
 `apps/api/src/bootstrap/configure-app.ts`, in order: pino logger with request IDs → `trust proxy`
-→ helmet (API CSP `default-src 'none'`) → `Cache-Control: no-store` → CORS allowlist → JSON body
-parser (256 KB limit) → global prefix `/api` + URI versioning (`/api/v1/...`; health is version
-neutral) → global throttler guard → global exception filter (uniform error envelope).
+→ helmet (API CSP `default-src 'none'`) → `Cache-Control: no-store` → CORS allowlist → mutation
+guard (state-changing requests need `Content-Type: application/json` and an allowed `Origin`) →
+JSON body parser (256 KB limit) → global prefix `/api` + URI versioning (`/api/v1/...`; health is
+version neutral). Global guards: Redis throttler (fails open) and session guard (public routes
+opt out). The exception filter writes the uniform error envelope.
 
 ## 5. Frontend
 
@@ -141,12 +144,14 @@ neutral) → global throttler guard → global exception filter (uniform error e
 - **Server state:** TanStack Query; the API remains the source of truth. Zustand will be adopted
   only for real client-only state (for example the focus timer display and the BYOK credential
   holder UI state), never as a mirror of server data.
-- **Forms:** React Hook Form + Zod schemas from `@planit/shared` (from Phase 2).
+- **Forms:** React Hook Form + Zod schemas from `@planit/shared`. Auth forms cover sign up,
+  verify, log in, log out, forgot password, and reset password. Settings edits the profile.
 - **UI system:** `@planit/ui` provides semantic design tokens (light/dark) and shadcn-style
   components built on Radix primitives. Components reference semantic tokens only.
 - **Theme:** light, dark, system. An inline nonce-bearing script applies the theme before first
-  paint; `ThemeSync` keeps it in sync. The preference is cached in `localStorage` until Phase 2,
-  after which `UserPreference.theme` is authoritative.
+  paint from `localStorage`. Signup stores `UserPreference.theme` as `SYSTEM`. The theme control
+  saves that row, and the signed-in shell copies it back into `localStorage` for the next first
+  paint.
 - **Navigation:** Home, Statistics, Calendar, Leaderboard, Profile, Settings, plus the
   "Ask PlanIT" entry point. Desktop: sidebar. Mobile: bottom tab bar plus header.
 - **PWA:** web manifest now; service worker and offline strategy are planned (Phase 5) and must

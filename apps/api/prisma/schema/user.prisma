@@ -1,5 +1,5 @@
-// Identity and per-user preferences. Authentication tables (sessions, OTPs, OAuth accounts)
-// are added in Phase 2.
+// Identity and per-user preferences. Sessions, OTPs, OAuth accounts, audit, and plans
+// live in auth.prisma.
 
 enum UserStatus {
   ACTIVE
@@ -44,7 +44,12 @@ model User {
   createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  preference UserPreference?
+  preference    UserPreference?
+  plan          UserPlan?
+  sessions      AuthSession[]
+  emailOtps     EmailOtp[]
+  oauthAccounts OAuthAccount[]
+  auditLogs     AuditLog[]
 
   @@map("users")
 }

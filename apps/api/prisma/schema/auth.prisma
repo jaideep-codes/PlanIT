@@ -1,0 +1,121 @@
+// Authentication, audit, and plan entitlement. Google sign-in uses oauth_accounts later.
+
+enum EmailOtpPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+enum SessionRevokeReason {
+  LOGOUT
+  ROTATED
+  REUSE
+  PASSWORD_RESET
+}
+
+enum AuditActorType {
+  USER
+  SYSTEM
+  AI_PROPOSAL
+}
+
+enum PlanTier {
+  FREE
+  PRO
+}
+
+enum OAuthProvider {
+  GOOGLE
+}
+
+/// One row per refresh-token generation. Rotation inserts a new row in the same family.
+model AuthSession {
+  id               String               @id @default(uuid(7)) @db.Uuid
+  userId           String               @map("user_id") @db.Uuid
+  familyId         String               @map("family_id") @db.Uuid
+  /// SHA-256 hex of the opaque refresh token. The raw token is never stored.
+  refreshTokenHash String               @unique @map("refresh_token_hash") @db.VarChar(64)
+  expiresAt        DateTime             @map("expires_at") @db.Timestamptz(3)
+  revokedAt        DateTime?            @map("revoked_at") @db.Timestamptz(3)
+  revokedReason    SessionRevokeReason? @map("revoked_reason")
+  replacedById     String?              @unique @map("replaced_by_id") @db.Uuid
+  userAgent        String?              @map("user_agent") @db.VarChar(256)
+  createdAt        DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  lastUsedAt       DateTime             @default(now()) @map("last_used_at") @db.Timestamptz(3)
+
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replacedBy AuthSession? @relation("SessionRotation", fields: [replacedById], references: [id], onDelete: SetNull)
+  replaces   AuthSession? @relation("SessionRotation")
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("auth_sessions")
+}
+
+/// Hashed one-time code. The raw code is never stored.
+model EmailOtp {
+  id         String          @id @default(uuid(7)) @db.Uuid
+  userId     String?         @map("user_id") @db.Uuid
+  email      String          @db.VarChar(320)
+  purpose    EmailOtpPurpose
+  /// HMAC-SHA256 hex of the code, keyed with the server pepper.
+  codeHash   String          @map("code_hash") @db.VarChar(64)
+  expiresAt  DateTime        @map("expires_at") @db.Timestamptz(3)
+  attempts   Int             @default(0) @db.SmallInt
+  consumedAt DateTime?       @map("consumed_at") @db.Timestamptz(3)
+  createdAt  DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([email, purpose, createdAt])
+  @@index([expiresAt])
+  @@map("email_otps")
+}
+
+/// Google identity link. The sign-in flow is added later; the table is here so that flow
+/// does not need another migration.
+model OAuthAccount {
+  id                String        @id @default(uuid(7)) @db.Uuid
+  userId            String        @map("user_id") @db.Uuid
+  provider          OAuthProvider
+  providerAccountId String        @map("provider_account_id")
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("oauth_accounts")
+}
+
+/// Append-only. Updates and deletes are rejected by a database trigger.
+model AuditLog {
+  id         String         @id @default(uuid(7)) @db.Uuid
+  userId     String?        @map("user_id") @db.Uuid
+  actorType  AuditActorType @map("actor_type")
+  action     String         @db.VarChar(64)
+  targetType String?        @map("target_type") @db.VarChar(64)
+  targetId   String?        @map("target_id") @db.Uuid
+  metadata   Json           @default("{}")
+  requestId  String?        @map("request_id") @db.VarChar(128)
+  /// HMAC-SHA256 hex of the client IP. The raw address is never stored.
+  ipHash     String?        @map("ip_hash") @db.VarChar(64)
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@map("audit_logs")
+}
+
+model UserPlan {
+  userId     String    @id @map("user_id") @db.Uuid
+  plan       PlanTier  @default(FREE)
+  validUntil DateTime? @map("valid_until") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_plans")
+}

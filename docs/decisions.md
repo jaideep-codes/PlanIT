@@ -164,4 +164,110 @@ supersedes it. Format: context → decision → consequences.
 
 - **Decision:** password reset uses the same hashed, attempt-limited OTP mechanism as
   verification.
-- **Consequences:** no secret ever appears in URLs, browser history, referrers or logs.
+- **Consequences:** no secret ever appears in URLs, browser history, referrers or logs. The
+  `PASSWORD_RESET` purpose exists in the schema; the reset flow is Phase 2 Part 2.
+
+### D-024 Refresh tokens last 30 days
+
+- **Context:** the access token lifetime is specified (15 minutes). The refresh lifetime was not.
+- **Decision:** a refresh token expires 30 days after it is issued. Rotation starts a new 30-day
+  window. Logout and reuse revocation end it sooner.
+- **Consequences:** a browser that stays closed for a month must sign in again. Session list and
+  revoke (Part 2) can shorten that further.
+
+### D-025 Breached-password checks use HIBP k-anonymity and fail open
+
+- **Decision:** `PasswordService` sends the first five characters of the SHA-1 of the password to
+  `https://api.pwnedpasswords.com/range/{prefix}` with `Add-Padding: true`, and compares the
+  suffix locally. The request times out after 1.5 seconds. If the service is unreachable, signup
+  continues and the failure is logged without the password.
+- **Consequences:** a real breach list is used when it is reachable. An outage does not take
+  signup down, and no password or full hash leaves the API. There is no stand-in breach API.
+
+### D-026 Queued email bodies are sealed with AES-256-GCM
+
+- **Context:** the raw OTP must not sit in Redis or Postgres, but the worker has to send it.
+- **Decision:** the API encrypts the email payload with `OTP_JOB_ENCRYPTION_KEY` before enqueue.
+  The worker decrypts it in memory, sends it, and removes the job. Failed jobs age out after
+  seven days and stay ciphertext. Completed jobs are removed immediately.
+- **Consequences:** Redis never holds a plaintext code. Losing the job key makes queued mail
+  unreadable, which is the intended failure.
+
+### D-027 Auth limits fail closed; the global throttler fails open on Redis
+
+- **Decision:** the global `@nestjs/throttler` guard stores counters in Redis and treats a Redis
+  error as "allow". Signup, login, OTP verify, OTP resend, refresh, and logout use a separate
+  limiter that returns 503 when Redis cannot answer. Keys are hashes of the email, account, or
+  IP, not the raw value.
+- **Consequences:** a Redis outage keeps ordinary traffic moving and stops credential endpoints.
+  This replaces the in-memory storage in D-018.
+
+### D-028 The refresh cookie is not `__Host-` prefixed
+
+- **Context:** `__Host-` requires `Path=/` and no `Domain`. The refresh token must be sent only to
+  `/api/v1/auth`.
+- **Decision:** the access cookie is `__Host-planit_access` with `Path=/`. The refresh cookie is
+  `planit_refresh` with `Path=/api/v1/auth`. Both are `HttpOnly`, `Secure`, and `SameSite=Lax`,
+  including on `http://localhost`.
+- **Consequences:** the refresh token is still unreadable to JavaScript and is not attached to
+  ordinary API calls. Browsers accept `Secure` and `__Host-` on `http://localhost`.
+
+### D-029 Client addresses are hashed with the OTP pepper
+
+- **Context:** audit rows need a stable client identifier and must not store the raw IP. Adding
+  another secret was unnecessary.
+- **Decision:** `ipHash` is HMAC-SHA256(OTP pepper, `ip:` + address). The `ip:` prefix keeps it
+  distinct from an OTP code hashed with the same pepper.
+- **Consequences:** rotating the OTP pepper also changes future IP hashes. Old rows are not
+  rewritten.
+
+### D-030 The credential migration includes unused auth columns
+
+- **Decision:** `20261001222857_auth_credentials` creates `oauth_accounts`, the
+  `PASSWORD_RESET` OTP purpose, the `PASSWORD_RESET` session revoke reason, and the
+  `USER | SYSTEM | AI_PROPOSAL` audit actor types. Google login, password reset, and the session
+  list were not implemented in Part 1. Password reset and the session list are Part 2 and did not
+  need a new migration.
+- **Consequences:** Parts 2 and 3 can use these columns without editing an applied migration.
+  Empty OAuth rows are not a feature.
+
+### D-031 Signup passwords require four character classes
+
+- **Context:** Part 1 required a 10-character minimum and a breach check. Composition rules were
+  added afterward.
+- **Decision:** a new password must include a lowercase letter, an uppercase letter, a number,
+  and a symbol (a character that is neither a letter nor a number). Login accepts any password
+  up to 200 characters and answers a mismatch with "Invalid email or password." It does not
+  tell the person which signup rule failed.
+- **Consequences:** the shared signup schema enforces the rule in the browser and the API. The
+  breach check is unchanged. Password reset uses the same rule (decision D-032).
+
+### D-032 Password reset does not reveal accounts, and a reset revokes every session
+
+- **Context:** the `PASSWORD_RESET` OTP purpose and revoke reason already exist (D-023, D-030).
+  A cooldown error that only happens for a real inbox would tell an attacker the email is
+  registered.
+- **Decision:** `POST /auth/password/forgot` returns `{ "status": "reset_requested" }` for every
+  syntactically valid email when Redis allows the call. The 60-second and hourly limits are Redis
+  counters keyed by the submitted email and are checked before the account lookup. The database
+  OTP cooldown still applies, in silent mode, so a second code is not sent. The reset code is
+  typed into the app and is never placed in a URL. The new password uses the signup composition
+  rule and the breach check. Success sets `emailVerifiedAt` when it was null, because the code
+  proved control of the inbox, then revokes every unrevoked session with reason `PASSWORD_RESET`.
+  One `auth.password_reset` audit row records how many sessions were revoked. It does not store
+  the email, the code, or the password. User-initiated session revoke keeps the existing `LOGOUT`
+  reason, so Part 2 does not need a migration. Revoking every session except the current one is
+  `POST /auth/sessions/revoke-others`, which cannot be confused with deleting the caller's own
+  session.
+- **Consequences:** an unknown address and a known address produce the same HTTP response. A
+  Redis outage fails these routes closed. After a reset, every browser must sign in again.
+
+### D-033 Theme is saved apart from the profile patch
+
+- **Context:** `PATCH /users/me` had to stay limited to display name and timezone. The theme
+  control already writes `localStorage` so the first paint is correct.
+- **Decision:** `PATCH /users/me/theme` is the only writer of `UserPreference.theme`. The
+  signed-in shell copies that value into `localStorage` unless the person has already changed the
+  theme during the current page view. `localStorage` remains a cache, not the source of truth.
+  Timezone values are checked with `Intl.DateTimeFormat`, not `Intl.supportedValuesOf('timeZone')`,
+  because the Windows ICU list omits `UTC` and some canonical names such as `Asia/Kolkata`.

@@ -28,6 +28,8 @@
 - `apps/api/src/infrastructure/redis/cache.service.ts`: namespaced keys (`planit:` prefix),
   `get`, `set`, `delete`, `getOrLoad`.
 - Development uses Redis DB `0`; e2e tests use DB `1`.
+- The global throttler and the named auth limits use Redis. Auth limits fail closed; the global
+  throttler and `CacheService` fail open (decision D-027). BullMQ uses its own connections.
 
 ## Planned keys
 

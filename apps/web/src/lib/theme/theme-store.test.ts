@@ -1,7 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  applyAuthoritativeTheme,
   readThemePreference,
+  resetThemeUserAdjustment,
   resolveTheme,
   setThemePreference,
   subscribeToThemePreference,
@@ -18,6 +20,11 @@ describe('resolveTheme', () => {
 });
 
 describe('theme preference persistence', () => {
+  beforeEach(() => {
+    resetThemeUserAdjustment();
+    window.localStorage.clear();
+  });
+
   it('defaults to system and ignores unknown stored values', () => {
     expect(readThemePreference()).toBe('system');
     window.localStorage.setItem(THEME_STORAGE_KEY, 'neon');
@@ -33,5 +40,14 @@ describe('theme preference persistence', () => {
     expect(readThemePreference()).toBe('dark');
     expect(listener).toHaveBeenCalledOnce();
     unsubscribe();
+  });
+
+  it('applies the saved theme until the person picks one on this page', () => {
+    applyAuthoritativeTheme('dark');
+    expect(readThemePreference()).toBe('dark');
+
+    setThemePreference('light');
+    applyAuthoritativeTheme('dark');
+    expect(readThemePreference()).toBe('light');
   });
 });

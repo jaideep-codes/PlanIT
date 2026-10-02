@@ -1,5 +1,5 @@
 import { Button } from '@planit/ui/components/button';
-import { Settings, Sparkles } from 'lucide-react';
+import { LogOut, Settings, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 
 import { Logo } from '@/components/app-shell/logo';
@@ -20,6 +20,11 @@ export function MobileHeader() {
           </Link>
         </Button>
         <ThemeToggle />
+        <Button asChild variant="ghost" size="icon">
+          <Link href="/logout" aria-label="Log out">
+            <LogOut aria-hidden="true" />
+          </Link>
+        </Button>
         <Button asChild variant="ghost" size="icon">
           <Link href="/settings" aria-label="Settings">
             <Settings aria-hidden="true" />

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
-import { ApiError, apiGet } from './api-client';
+import { ApiError, apiDelete, apiGet, apiPatch, apiPost } from './api-client';
 
 const schema = z.object({ status: z.string() });
 
@@ -57,5 +57,56 @@ describe('apiGet', () => {
       status: 0,
       code: 'NETWORK_ERROR',
     });
+  });
+});
+
+describe('apiPost', () => {
+  it('sends JSON to the same origin and does not put the body in the URL', async () => {
+    const fetchMock = mockFetch(200, { status: 'verification_required' });
+    await expect(
+      apiPost('/v1/auth/signup', { email: 'ada@example.com', password: 'correct-horse' }, schema),
+    ).resolves.toEqual({ status: 'verification_required' });
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/auth/signup',
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'ada@example.com', password: 'correct-horse' }),
+      }),
+    );
+  });
+});
+
+describe('apiPatch and apiDelete', () => {
+  it('sends JSON so state-changing requests pass the mutation guard', async () => {
+    const fetchMock = vi.fn().mockImplementation(
+      () =>
+        new Response(JSON.stringify({ status: 'revoked' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    await apiPatch('/v1/users/me/theme', { theme: 'dark' }, schema);
+    await apiDelete('/v1/auth/sessions/01999999-9999-7999-8999-999999999999', schema);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      '/api/v1/users/me/theme',
+      expect.objectContaining({
+        method: 'PATCH',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme: 'dark' }),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      '/api/v1/auth/sessions/01999999-9999-7999-8999-999999999999',
+      expect.objectContaining({
+        method: 'DELETE',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      }),
+    );
   });
 });

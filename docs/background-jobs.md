@@ -1,7 +1,8 @@
 # Background jobs
 
-> Status: **planned**. BullMQ is introduced in Phase 2 with the first real jobs (email sending
-> and OTP cleanup). No queue infrastructure is registered in Phase 1, to avoid placeholder code.
+> Status: **email delivery and OTP cleanup are running**. Other queues below stay planned until
+> their phase. The worker entry point is `apps/api/src/worker.ts`. `pnpm dev` starts it beside
+> the API; production runs `node dist/worker.js` (`pnpm --filter @planit/api start:worker`).
 
 ## Runtime model
 
@@ -12,7 +13,10 @@
 - BullMQ on Redis, using dedicated connections (`maxRetriesPerRequest: null`).
 - Workers call the same domain services as the API. They are subject to the same ownership
   rules: every job payload carries the `userId` it operates on, and services scope by it.
-- Job payloads contain IDs and parameters only, never secrets, tokens or prompt text.
+- Job payloads contain IDs and parameters only, never secrets, tokens or prompt text. The email
+  queue is the exception that must carry a verification code: the API seals that payload with
+  AES-256-GCM (`OTP_JOB_ENCRYPTION_KEY`) before enqueue, and the worker deletes the job when it
+  finishes (decision D-026). Postgres stores only the HMAC of the code.
 
 ## Queues
 
@@ -38,8 +42,10 @@
 - **Recoverable from the database.** Losing Redis loses only pending jobs. A `maintenance`
   reconciliation job re-derives work from database state (for example dirty-aggregate markers
   and unsent emails).
-- **Schedules** use BullMQ job schedulers (cron, UTC). Per-user local-time work (for example
-  "after the user's day ends") is computed from the user's timezone when enqueued.
+- **Schedules** use BullMQ job schedulers (cron, UTC). The OTP cleanup scheduler runs at minute
+  15 of every hour (`15 * * * *`) and once at worker startup. It deletes `email_otps` rows whose
+  `expires_at` is at least 24 hours in the past. Per-user local-time work (for example "after the
+  user's day ends") is computed from the user's timezone when enqueued.
 - **Observability:** per-queue counters for completed, failed and retried jobs, and processing
   latency; structured logs with `jobId`, queue and attempt; alerts on failure-rate spikes and
   queue backlog.

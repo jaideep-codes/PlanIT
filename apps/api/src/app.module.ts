@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { seconds, ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { PinoLogger } from 'nestjs-pino';
 
 import { GlobalExceptionFilter } from './common/errors/global-exception.filter.js';
 import { LoggingModule } from './common/logging/logging.module.js';
@@ -9,17 +10,26 @@ import { AppConfigModule } from './config/config.module.js';
 import type { Env } from './config/env.js';
 import { DatabaseModule } from './infrastructure/database/database.module.js';
 import { RedisModule } from './infrastructure/redis/redis.module.js';
+import { RedisThrottlerStorage } from './infrastructure/redis/redis-throttler.storage.js';
+import { RedisService } from './infrastructure/redis/redis.service.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { AuditModule } from './modules/audit/audit.module.js';
+import { AuthModule } from './modules/auth/auth.module.js';
+import { EntitlementModule } from './modules/entitlements/entitlement.module.js';
+import { UsersModule } from './modules/users/users.module.js';
 
 @Module({
   imports: [
     AppConfigModule,
     LoggingModule,
-    // Baseline per-IP limit for every route. Sensitive routes (login, OTP, AI, ...) add
-    // stricter named limits in their own phases; storage moves to Redis in Phase 2.
+    RedisModule,
+    // Baseline per-IP limit. Storage is Redis and fails open. Auth routes add stricter
+    // named limits that fail closed (AuthRateLimitService).
     ThrottlerModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService<Env, true>) => ({
+      imports: [RedisModule],
+      inject: [ConfigService, RedisService, PinoLogger],
+      useFactory: (config: ConfigService<Env, true>, redis: RedisService, logger: PinoLogger) => ({
+        storage: new RedisThrottlerStorage(redis, logger),
         throttlers: [
           {
             name: 'default',
@@ -30,7 +40,10 @@ import { HealthModule } from './modules/health/health.module.js';
       }),
     }),
     DatabaseModule,
-    RedisModule,
+    AuditModule,
+    EntitlementModule,
+    AuthModule,
+    UsersModule,
     HealthModule,
   ],
   providers: [

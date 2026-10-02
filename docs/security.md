@@ -16,31 +16,36 @@ Status legend: ✅ implemented · 🟡 partially implemented · ⏳ planned (pha
 | Browser → BYOK provider  | n/a (user's own account)           | model output is untrusted; proposals still go through API validation                              |
 | Stored user content      | none                               | task titles, notes, bios, goal text and skill names are untrusted data (XSS and prompt injection) |
 
-## 2. Authentication (⏳ Phase 2: design)
+## 2. Authentication (🟡 Phase 2 Parts 1–2)
 
-- **Passwords:** Argon2id (`argon2` package; OWASP baseline m=19 MiB, t=2, p=1, tuned on target
-  hardware). Minimum 10 characters, checked against a breached-password list where feasible.
-  Timing-equalised responses for unknown emails.
-- **Mandatory email verification:** 6-digit OTP, 10-minute expiry, single use, at most 5 attempts
-  per code, 60-second resend cooldown, at most 5 codes per email per hour. Stored as
-  HMAC-SHA256(server pepper, code) and compared in constant time. Never logged. Unverified
-  accounts can only reach the verification endpoints.
-- **Password reset:** the same OTP mechanism (`PASSWORD_RESET` purpose), not URL tokens, so no
-  secret ever appears in a URL. A successful reset revokes all sessions.
-- **Sessions:** short-lived access token (JWT, 15 minutes, signed with a server-side key and
-  containing only `sub`, `sid` and `exp`) plus an opaque 256-bit refresh token stored hashed in
-  `AuthSession`. Refresh **rotates** the token; reuse of a rotated token revokes the entire
-  family. Logout revokes the session. Users can list and revoke their sessions.
-- **Cookies:** `HttpOnly; Secure; SameSite=Lax`. Access cookie `__Host-` prefixed with `Path=/`;
-  refresh cookie scoped to `/api/v1/auth`. Tokens are never readable by JavaScript and never
-  placed in URLs or localStorage.
-- **Google OAuth:** authorization code flow with PKCE, `state` and `nonce`, handled by the API.
-  The ID token is verified against Google's keys, and `email_verified` must be true. A Google
-  identity links to an existing account only when that account's email is already verified, so
-  an attacker cannot pre-register a victim's email.
-- **Route protection:** `proxy.ts` redirects unauthenticated page loads to sign-in as a UX
-  measure only. Every API route is guarded by the session guard; "public" routes are opt-in via
-  an explicit decorator.
+- ✅ **Passwords:** Argon2id (`argon2` package; memory 19 MiB, time 2, parallelism 1). Minimum 10
+  characters. Signup also requires a lowercase letter, an uppercase letter, a number, and a
+  symbol (decision D-031). Login does not describe those rules. A wrong password, including one
+  that would fail signup, returns the same invalid-credentials message.
+  Have I Been Pwned k-anonymity rejects breached passwords and fails open when the service is
+  unreachable (decision D-025). Login and signup for an unknown email are timing-equalised and
+  do not reveal whether the account exists.
+- ✅ **Mandatory email verification:** 6-digit OTP, 10-minute expiry, single use, at most 5
+  attempts per code, 60-second resend cooldown, at most 5 codes per email per hour. Stored as
+  HMAC-SHA256(server pepper, code) and compared in constant time. Never logged. An unverified
+  account can reach only the verification and resend endpoints.
+- ✅ **Password reset:** the same OTP mechanism (`PASSWORD_RESET`), not URL tokens. Unknown
+  emails get the same acknowledgement as known emails. A successful reset revokes every session.
+- ✅ **Sessions:** access token is a 15-minute JWT containing only `sub`, `sid` and `exp`. The
+  refresh token is an opaque 256-bit value stored as a SHA-256 hash, with a 30-day lifetime
+  (decision D-024). Login opens a new family and leaves other sessions alone. Refresh rotates
+  inside a transaction; reuse of a rotated token revokes the family. Logout revokes that session.
+- ✅ **Session list and revoke:** the owner can list live sessions, revoke one, or revoke every
+  session except the current one. A session id belonging to someone else is 404.
+- ✅ **Cookies:** `HttpOnly; Secure; SameSite=Lax`, including on `http://localhost`. Access cookie
+  `__Host-planit_access` with `Path=/`. Refresh cookie `planit_refresh` with `Path=/api/v1/auth`
+  (decision D-028). Tokens are never readable by JavaScript and never placed in URLs or
+  localStorage.
+- ⏳ **Google OAuth:** authorization code flow with PKCE, `state` and `nonce`, handled by the API.
+  The `oauth_accounts` table exists so Part 3 does not need a migration. The flow is not built.
+- ✅ **Route protection:** `proxy.ts` sends unauthenticated app-shell visits to the login page as
+  a UX measure only. Every API route is guarded by the session guard; public routes opt out with
+  `@Public()`. Health stays public.
 
 ## 3. Authorization and data isolation
 
@@ -60,9 +65,9 @@ userId } })`). A resource ID alone never grants access. Cross-user access return
 ## 4. CSRF, CORS and origin policy
 
 - Browsers reach the API through the web origin (same-origin), with `SameSite=Lax` cookies.
-- ⏳ State-changing requests additionally require: `Content-Type: application/json` (rejects
-  HTML form posts) and an `Origin` (or `Sec-Fetch-Site: same-origin`) that matches `WEB_ORIGINS`.
-  Requests failing the check get 403.
+- ✅ State-changing requests require `Content-Type: application/json` (a charset parameter is
+  allowed) and an `Origin` in `WEB_ORIGINS`. When `Origin` is absent, `Sec-Fetch-Site: same-origin`
+  is accepted. Failure is 403. The check runs before the body parser.
 - ✅ CORS: explicit origin allowlist with credentials. No wildcard. Allowed headers are limited.
 
 ## 5. HTTP hardening
@@ -88,20 +93,20 @@ userId } })`). A resource ID alone never grants access. Cross-user access return
 ## 6. Client IP and rate limiting
 
 - ✅ Baseline global throttler guard (per IP, `RATE_LIMIT_MAX_REQUESTS` per
-  `RATE_LIMIT_WINDOW_SECONDS`). Liveness is exempt.
-- ⏳ Named stricter limits (Phase 2 onward), keyed by IP **and** by account or email where
-  relevant: login, signup, OTP send/verify, password reset, Google callback, friend requests,
-  user search, public profile reads, AI chat, proposal creation and proposal execution. Storage
-  moves to Redis so limits hold across instances; if Redis is down, sensitive routes **fail
-  closed** (reject) while ordinary routes fail open.
-- ⚠️ **`TRUST_PROXY` defaults to `false`.** Next.js external rewrites do not appear to append
-  `X-Forwarded-For` (checked in `next/dist/server/lib/router-utils/proxy-request.js`; not yet
-  confirmed by an end-to-end test). With `trust proxy` enabled, a client-supplied header could
-  pass through unmodified and let clients choose their own IP for rate limiting. Until Phase 2
-  establishes a verified client-IP chain (for example the edge load balancer sets the header and
-  the Next.js hop is accounted for, or the web tier sets a header the API trusts only from its
-  own network), the API sees the proxy's IP. That makes per-IP limits coarse, but they cannot be
-  spoofed. Account-keyed limits on auth routes do not depend on IP.
+  `RATE_LIMIT_WINDOW_SECONDS`), stored in Redis and failing open if Redis is down (decision D-027).
+  Liveness is exempt.
+- ✅ Named limits on signup, login, OTP verify, OTP resend, refresh, logout, password forgot,
+  and password reset, keyed by email or account as well as IP. Redis keys are hashes, so the
+  address or token is not stored raw. If Redis is down, these routes fail closed (503). The
+  forgot-password cooldown is one of those Redis limits and is applied before the account
+  lookup, so a 429 does not reveal whether the email exists. Google callback, friend requests,
+  search, profiles, and AI routes get their limits when those features are built.
+- ⚠️ **`TRUST_PROXY` stays `false`.** Next.js external rewrites do not appear to append
+  `X-Forwarded-For`. With `trust proxy` enabled, a client-supplied header could pass through
+  unmodified and let clients choose their own IP. The API therefore sees the connecting hop,
+  which on the local rewrite is the web server. Per-IP limits are coarse and cannot be spoofed.
+  Email- and account-keyed auth limits do not depend on that IP. A verified client-IP chain is
+  still future work.
 - AI usage limits (product quotas) are separate from security rate limits (`docs/ai-architecture.md`).
 
 ## 7. Secrets management
@@ -130,13 +135,18 @@ userId } })`). A resource ID alone never grants access. Cross-user access return
 - Never log: passwords, OTPs, BYOK keys, PlanIT-managed keys, refresh/access tokens, OAuth
   secrets or codes, AI prompts/responses (except in explicit, user-visible chat history).
 
-## 9. Audit logging (⏳ Phase 2+)
+## 9. Audit logging (🟡 Phase 2+)
 
-Append-only `AuditLog` rows for: sign-up, login (success/failure), logout, session revocation,
-refresh-token reuse detection, password and email changes, Google link/unlink, privacy and
-visibility changes, bulk task mutations, AI proposal approval/execution/failure, BYOK mode
-on/off (mode only, never the key), data export, and account deletion. Metadata is an allowlisted
-structure, never raw request bodies, and never secrets.
+Append-only `AuditLog` rows. A database trigger rejects `UPDATE` and `DELETE`. Recorded actions
+are `auth.signup`, `auth.login_succeeded`, `auth.login_failed`, `auth.logout`,
+`auth.refresh_reuse`, `auth.password_reset_requested`, `auth.password_reset`,
+`auth.session_revoked`, and `auth.sessions_revoked`. The client address is stored as `ipHash`
+(HMAC-SHA256 of the OTP pepper and an `ip:` prefix, decision D-029), never the raw IP, and never
+a secret. Password-reset rows do not store the email, the code, or the new password. Still to
+record when their features ship: email changes, Google link/unlink, privacy and visibility
+changes, bulk task mutations, AI proposal approval/execution/failure, BYOK mode on/off (mode
+only, never the key), data export, and account deletion. Metadata is an allowlisted structure,
+never raw request bodies.
 
 ## 10. Dependency and supply-chain hygiene
 

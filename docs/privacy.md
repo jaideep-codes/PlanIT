@@ -54,18 +54,19 @@ assembler as real viewers, so the preview is exactly what others see.
 
 ## Data inventory (current and planned)
 
-| Data                               | Purpose                        | Visibility                                | Retention                                                           |
-| ---------------------------------- | ------------------------------ | ----------------------------------------- | ------------------------------------------------------------------- |
-| Account (email, password hash)     | authentication                 | owner only                                | until account deletion                                              |
-| Profile fields                     | social features                | per visibility model                      | until changed/deleted                                               |
-| Tasks, goals, skills, availability | planning                       | owner only                                | until deleted                                                       |
-| Focus sessions, aggregates         | statistics                     | owner; selected aggregates per visibility | until deleted                                                       |
-| AI chat history, memories          | assistant continuity           | owner only                                | user-deletable; default retention 12 months for chat (configurable) |
-| AI proposals                       | confirmation and audit         | owner only                                | 90 days after resolution                                            |
-| AI usage records                   | quotas (managed) / info (BYOK) | owner only                                | 13 months                                                           |
-| Audit log                          | security                       | internal                                  | 1 year                                                              |
-| OTP records                        | verification                   | internal                                  | deleted after expiry plus 24 hours                                  |
-| Logs                               | operations                     | internal                                  | 30 days; never contain secrets or content                           |
+| Data                               | Purpose                        | Visibility                                | Retention                                                                        |
+| ---------------------------------- | ------------------------------ | ----------------------------------------- | -------------------------------------------------------------------------------- |
+| Account (email, password hash)     | authentication                 | owner only                                | until account deletion                                                           |
+| Profile fields                     | social features                | per visibility model                      | until changed/deleted                                                            |
+| Tasks, goals, skills, availability | planning                       | owner only                                | until deleted                                                                    |
+| Focus sessions, aggregates         | statistics                     | owner; selected aggregates per visibility | until deleted                                                                    |
+| AI chat history, memories          | assistant continuity           | owner only                                | user-deletable; default retention 12 months for chat (configurable)              |
+| AI proposals                       | confirmation and audit         | owner only                                | 90 days after resolution                                                         |
+| AI usage records                   | quotas (managed) / info (BYOK) | owner only                                | 13 months                                                                        |
+| Audit log                          | security                       | internal                                  | 1 year; stores `ipHash`, never the raw IP                                        |
+| Refresh sessions                   | authentication                 | owner (list and revoke)                   | until logout, expiry, reset, or family revocation; only the token hash is stored |
+| OTP records                        | verification                   | internal                                  | deleted after expiry plus 24 hours; only the HMAC is stored                      |
+| Logs                               | operations                     | internal                                  | 30 days; never contain secrets or content                                        |
 
 ## User rights (planned)
 
