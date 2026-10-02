@@ -114,9 +114,9 @@ Rules (enforced by review; the first two also by ESLint in `apps/api/eslint.conf
 | Module                      | Phase | Responsibility                                                                                |
 | --------------------------- | ----- | --------------------------------------------------------------------------------------------- |
 | Health                      | 1 ✅  | liveness/readiness                                                                            |
-| Auth                        | 2 🟡  | Signup, OTP, login, logout, password reset, rotating sessions, session revoke. Google remains |
+| Auth                        | 2 🟡  | Signup, OTP, login, logout, password reset, rotating sessions, session revoke, Google sign-in |
 | Users / Profile / Privacy   | 2, 8  | current user (display name, timezone, theme). Public profiles remain                          |
-| Audit                       | 2 🟡  | append-only log; signup, login, logout, refresh reuse, password reset, session revoke         |
+| Audit                       | 2 🟡  | append-only log; signup, login, logout, refresh reuse, password reset, session revoke, Google |
 | Entitlements                | 2 🟡  | reads `UserPlan`; `can(userId, 'pro')` is false on FREE. No Pro features                      |
 | Tasks / RecurringTasks      | 3     | task engine, recurrence rules, occurrence materialization                                     |
 | Focus                       | 4     | server-authoritative focus sessions                                                           |

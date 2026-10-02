@@ -16,9 +16,10 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { AuthField } from '@/components/auth/auth-field';
+import { GoogleSignInButton } from '@/components/auth/google-sign-in-button';
 import { ApiError, apiPost } from '@/lib/api/api-client';
 
-export function SignupForm() {
+export function SignupForm({ googleAvailable }: { googleAvailable: boolean }) {
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
   const {
@@ -50,6 +51,8 @@ export function SignupForm() {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        <GoogleSignInButton available={googleAvailable} />
+        <p className="my-4 text-center text-xs text-muted-foreground">or</p>
         <form className="grid gap-4" onSubmit={handleSubmit(onSubmit)} noValidate>
           <AuthField
             id="signup-email"

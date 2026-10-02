@@ -70,4 +70,58 @@ describe('validateEnv', () => {
       expect(message).not.toContain('secret-password');
     }
   });
+
+  it('leaves Google unset when the variables are empty', () => {
+    const env = validateEnv(validEnv);
+    expect(env.GOOGLE_CLIENT_ID).toBe('');
+    expect(env.GOOGLE_CLIENT_SECRET).toBe('');
+    expect(env.GOOGLE_REDIRECT_URI).toBe('');
+  });
+
+  it('accepts a localhost Google redirect and rejects a partial or leaking configuration', () => {
+    const redirect = 'http://localhost:3000/api/v1/auth/google/callback';
+    const configured = validateEnv({
+      ...validEnv,
+      GOOGLE_CLIENT_ID: ' google-client ',
+      GOOGLE_CLIENT_SECRET: ' google-secret ',
+      GOOGLE_REDIRECT_URI: ` ${redirect} `,
+    });
+    expect(configured.GOOGLE_CLIENT_ID).toBe('google-client');
+    expect(configured.GOOGLE_CLIENT_SECRET).toBe('google-secret');
+    expect(configured.GOOGLE_REDIRECT_URI).toBe(redirect);
+
+    const secret = 'super-secret-google-value';
+    expect(() =>
+      validateEnv({ ...validEnv, GOOGLE_CLIENT_ID: 'google-client', GOOGLE_CLIENT_SECRET: secret }),
+    ).toThrow(/GOOGLE_REDIRECT_URI/);
+    try {
+      validateEnv({
+        ...validEnv,
+        GOOGLE_CLIENT_ID: 'google-client',
+        GOOGLE_CLIENT_SECRET: secret,
+        GOOGLE_REDIRECT_URI: `http://user:${secret}@localhost:3000/api/v1/auth/google/callback`,
+      });
+      expect.unreachable('validateEnv should have thrown');
+    } catch (error) {
+      expect((error as Error).message).not.toContain(secret);
+    }
+  });
+
+  it('requires the Google redirect origin to be an allowed https origin in production', () => {
+    const production = {
+      ...validEnv,
+      NODE_ENV: 'production',
+      WEB_ORIGINS: 'https://app.example.com',
+      GOOGLE_CLIENT_ID: 'google-client',
+      GOOGLE_CLIENT_SECRET: 'google-secret',
+      GOOGLE_REDIRECT_URI: 'https://app.example.com/api/v1/auth/google/callback',
+    };
+    expect(validateEnv(production).GOOGLE_REDIRECT_URI).toMatch(/^https:\/\/app\.example\.com\//);
+    expect(() =>
+      validateEnv({
+        ...production,
+        GOOGLE_REDIRECT_URI: 'http://app.example.com/api/v1/auth/google/callback',
+      }),
+    ).toThrow(/GOOGLE_REDIRECT_URI/);
+  });
 });

@@ -565,4 +565,32 @@ describe('credential auth (e2e)', () => {
 
     await request(app.getHttpServer()).get('/api/v1/users/me').expect(401);
   });
+
+  it('does not simulate Google sign-in when credentials are absent', async () => {
+    const availability = await request(app.getHttpServer())
+      .get('/api/v1/auth/google/start')
+      .set('Accept', 'application/json')
+      .expect(200);
+    expect(availability.body).toEqual({ available: false });
+    expect(setCookieLines(availability)).toHaveLength(0);
+
+    const start = await request(app.getHttpServer())
+      .get('/api/v1/auth/google/start')
+      .set('Accept', 'text/html')
+      .expect(503);
+    expect(errorOf(start).code).toBe('SERVICE_UNAVAILABLE');
+    expect(errorOf(start).message).toBe('Google sign-in is not configured.');
+    expect(start.headers.location).toBeUndefined();
+    expect(setCookieLines(start)).toHaveLength(0);
+
+    const code = `google-code-${randomUUID()}`;
+    const callback = await request(app.getHttpServer())
+      .get('/api/v1/auth/google/callback')
+      .query({ code, state: 'a'.repeat(43) })
+      .expect(503);
+    expect(errorOf(callback).message).toBe('Google sign-in is not configured.');
+    expect(callback.headers.location).toBeUndefined();
+    expect(setCookieLines(callback)).toHaveLength(0);
+    expectNoSecrets(callback.body, code);
+  });
 });

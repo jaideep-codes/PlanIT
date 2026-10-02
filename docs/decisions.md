@@ -271,3 +271,30 @@ supersedes it. Format: context → decision → consequences.
   theme during the current page view. `localStorage` remains a cache, not the source of truth.
   Timezone values are checked with `Intl.DateTimeFormat`, not `Intl.supportedValuesOf('timeZone')`,
   because the Windows ICU list omits `UTC` and some canonical names such as `Asia/Kolkata`.
+
+### D-034 Google sign-in is an authorization-code flow on the API
+
+- **Context:** Google login must keep the client secret on the API, accept an identity only when
+  Google says the email is verified, and must not attach Google to a PlanIT account that has not
+  verified its own email (that row may have been created by someone else). `oauth_accounts`
+  already exists (decision D-030).
+- **Decision:** `GET /auth/google/start` and `GET /auth/google/callback` run on the API. Start
+  stores a random `state`, PKCE verifier, and `nonce` in Redis for 10 minutes. The Redis key is a
+  hash of the state. The browser also gets an `HttpOnly; Secure; SameSite=Lax` cookie,
+  `planit_oauth_state`, holding that hash and scoped to `/api/v1/auth`, so a callback URL copied
+  to another browser does not complete. The callback consumes the state once, exchanges the code
+  with the verifier and client secret, and verifies the ID token against Google's JWKS (RS256,
+  issuer, audience, nonce). Login continues only when `email_verified` is boolean true. An
+  existing user is linked only when `emailVerifiedAt` is set. A new user is created with a null
+  password hash and `emailVerifiedAt` set, because Google verified the address. The redirect URI
+  is the web origin's `/api/v1/auth/google/callback`, so the session cookies stay first-party.
+  `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` are all set or all empty.
+  When they are empty, the button says Google sign-in is not configured and a navigation to start
+  returns 503. There is no simulated Google login. Start and the callback are rate-limited per IP
+  and fail closed if Redis is down. Audit rows record `auth.google_link_succeeded` or
+  `auth.google_link_failed` with an outcome or reason only.
+- **Consequences:** Part 3 does not add a migration. A Google-only account cannot use password
+  login or password reset until a password exists (reset already refuses a null hash). An
+  unverified password signup blocks Google for that email until the OTP is confirmed. An
+  already-linked Google subject signs in as that user even when the email claim matches a
+  different account. No OAuth token or authorization code is stored.

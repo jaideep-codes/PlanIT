@@ -17,6 +17,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { AuthField } from '@/components/auth/auth-field';
+import { GoogleSignInButton } from '@/components/auth/google-sign-in-button';
 import { ApiError, apiPost } from '@/lib/api/api-client';
 
 const APP_PATHS = [
@@ -38,10 +39,14 @@ export function LoginForm({
   nextPath,
   verified,
   reset,
+  googleAvailable,
+  googleMessage,
 }: {
   nextPath?: string;
   verified: boolean;
   reset: boolean;
+  googleAvailable: boolean;
+  googleMessage: string | null;
 }) {
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
@@ -82,6 +87,13 @@ export function LoginForm({
             Password updated. Sign in with the new password.
           </p>
         ) : null}
+        {googleMessage ? (
+          <p role="alert" className="mb-4 text-sm text-destructive">
+            {googleMessage}
+          </p>
+        ) : null}
+        <GoogleSignInButton available={googleAvailable} />
+        <p className="my-4 text-center text-xs text-muted-foreground">or</p>
         <form className="grid gap-4" onSubmit={handleSubmit(onSubmit)} noValidate>
           <AuthField
             id="login-email"

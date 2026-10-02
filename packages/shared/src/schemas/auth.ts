@@ -1,4 +1,9 @@
-import type { AuthAcknowledgement, AuthSessionList, SessionRevocation } from '@planit/types';
+import type {
+  AuthAcknowledgement,
+  AuthSessionList,
+  GoogleSignInAvailability,
+  SessionRevocation,
+} from '@planit/types';
 import { z } from 'zod';
 
 const emailSchema = z
@@ -99,3 +104,17 @@ export type OtpVerifyRequest = z.infer<typeof otpVerifyRequestSchema>;
 export type OtpResendRequest = z.infer<typeof otpResendRequestSchema>;
 export type PasswordForgotRequest = z.infer<typeof passwordForgotRequestSchema>;
 export type PasswordResetRequest = z.infer<typeof passwordResetRequestSchema>;
+
+/**
+ * Google's callback query. Unknown keys (scope, authuser) are ignored. The authorization
+ * code is read once and never stored.
+ */
+export const googleCallbackQuerySchema = z.object({
+  code: z.string().min(1).max(2048).optional(),
+  state: z.string().min(1).max(128).optional(),
+  error: z.string().min(1).max(64).optional(),
+});
+
+export const googleSignInAvailabilitySchema = z.strictObject({
+  available: z.boolean(),
+}) satisfies z.ZodType<GoogleSignInAvailability>;

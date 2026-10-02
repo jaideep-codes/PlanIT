@@ -56,6 +56,43 @@ describe('log redaction', () => {
     expect(output.headers['set-cookie']).toBe('[REDACTED]');
   });
 
+  it('redacts Google credentials and an authorization code carried in an error', () => {
+    const { log, text } = captureLogger();
+    log.info(
+      {
+        client_secret: 'google-secret',
+        GOOGLE_CLIENT_SECRET: 'google-secret',
+        code_verifier: 'pkce-verifier',
+        nonce: 'oauth-nonce',
+        id_token: 'signed-id-token',
+      },
+      'Google sign-in failed',
+    );
+    const output = JSON.parse(text()) as {
+      client_secret: string;
+      GOOGLE_CLIENT_SECRET: string;
+      code_verifier: string;
+      nonce: string;
+      id_token: string;
+    };
+    expect(output.client_secret).toBe('[REDACTED]');
+    expect(output.GOOGLE_CLIENT_SECRET).toBe('[REDACTED]');
+    expect(output.code_verifier).toBe('[REDACTED]');
+    expect(output.nonce).toBe('[REDACTED]');
+    expect(output.id_token).toBe('[REDACTED]');
+    expect(text()).not.toContain('google-secret');
+    expect(text()).not.toContain('pkce-verifier');
+
+    const logged = serializeLoggedError(
+      new Error(
+        'token request failed at https://oauth2.googleapis.com/token?code=auth-code&state=oauth-state',
+      ),
+    );
+    expect(logged.message).not.toContain('auth-code');
+    expect(logged.message).not.toContain('oauth-state');
+    expect(logged.message).toContain('code=[REDACTED]');
+  });
+
   it('logs a scrubbed error and keeps a non-secret error code', () => {
     const error = new Error(
       'failed $argon2id$v=19$m=19456$secret for code 654321 at postgresql://planit:secret-password@127.0.0.1:5432/planit',

@@ -1,4 +1,4 @@
-// Authentication, audit, and plan entitlement. Google sign-in uses oauth_accounts later.
+// Authentication, audit, and plan entitlement. Google sign-in links oauth_accounts.
 
 enum EmailOtpPurpose {
   EMAIL_VERIFICATION
@@ -73,8 +73,7 @@ model EmailOtp {
   @@map("email_otps")
 }
 
-/// Google identity link. The sign-in flow is added later; the table is here so that flow
-/// does not need another migration.
+/// Google identity link. One Google subject maps to one PlanIT user.
 model OAuthAccount {
   id                String        @id @default(uuid(7)) @db.Uuid
   userId            String        @map("user_id") @db.Uuid

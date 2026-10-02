@@ -19,7 +19,7 @@ const USER_SELECT = {
   status: true,
 } as const;
 
-function isUniqueViolation(error: unknown): boolean {
+export function isUniqueViolation(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2002';
 }
 
@@ -90,5 +90,49 @@ export class AuthRepository {
       },
     });
     return 'updated';
+  }
+
+  /** The PlanIT user already linked to this Google subject, if any. */
+  async findGoogleUserId(providerAccountId: string): Promise<string | null> {
+    const row = await this.prisma.oAuthAccount.findUnique({
+      where: { provider_providerAccountId: { provider: 'GOOGLE', providerAccountId } },
+      select: { userId: true },
+    });
+    return row?.userId ?? null;
+  }
+
+  /**
+   * Google-only account: no password hash, and the email is already verified because Google
+   * asserted `email_verified`. Preference and plan match a password signup.
+   */
+  createGoogleUser(
+    tx: DbClient,
+    input: {
+      email: string;
+      displayName: string | null;
+      emailVerifiedAt: Date;
+      providerAccountId: string;
+    },
+  ): Promise<{ id: string }> {
+    return tx.user.create({
+      data: {
+        email: input.email,
+        passwordHash: null,
+        emailVerifiedAt: input.emailVerifiedAt,
+        displayName: input.displayName,
+        preference: { create: { theme: 'SYSTEM' } },
+        plan: { create: { plan: 'FREE' } },
+        oauthAccounts: {
+          create: { provider: 'GOOGLE', providerAccountId: input.providerAccountId },
+        },
+      },
+      select: { id: true },
+    });
+  }
+
+  async linkGoogleAccount(tx: DbClient, userId: string, providerAccountId: string): Promise<void> {
+    await tx.oAuthAccount.create({
+      data: { userId, provider: 'GOOGLE', providerAccountId },
+    });
   }
 }

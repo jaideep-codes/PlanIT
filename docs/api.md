@@ -1,6 +1,6 @@
 # API
 
-> Implemented: health checks, Phase 2 Part 1 auth, and the Part 2 account routes below.
+> Implemented: health checks, Phase 2 Part 1 auth, Part 2 account routes, and Google sign-in.
 > Remaining route groups are listed as **planned**.
 
 ## Conventions
@@ -139,7 +139,35 @@ Redis failures on these routes are `503`.
 
 Schemas: `passwordForgotRequestSchema`, `passwordResetRequestSchema`, `sessionIdSchema`,
 `authSessionListSchema`, `sessionRevocationSchema`, `updateCurrentUserRequestSchema`,
-`updateThemeRequestSchema`, `currentUserSchema` in `@planit/shared`.
+`updateThemeRequestSchema`, `currentUserSchema`, `googleCallbackQuerySchema`,
+`googleSignInAvailabilitySchema` in `@planit/shared`.
+
+### Google sign-in (Phase 2 Part 3)
+
+Both routes are public (`@Public()`). They are browser navigations, not JSON mutations, so they
+do not send a JSON body. The client secret never leaves the API.
+
+| Method | Path                           | Success                                                                                         |
+| ------ | ------------------------------ | ----------------------------------------------------------------------------------------------- |
+| GET    | `/api/v1/auth/google/start`    | `302` to Google's authorization endpoint, with PKCE, `state`, and `nonce`                       |
+| GET    | `/api/v1/auth/google/callback` | `303` to `/` and sets the session cookies. Failures `303` to `/login?google=` with an allowlist |
+
+`GET /api/v1/auth/google/start` with `Accept: application/json` (and no `text/html`) does not start
+a login. It returns `{ "available": true }` or `{ "available": false }`. A browser navigation when
+Google is not configured is `503` "Google sign-in is not configured." The callback is the same
+`503` in that case, and it does not set session cookies. The callback is rate-limited per IP and
+fails closed when Redis is down.
+
+The callback accepts `code`, `state`, and `error`. It ignores other query keys. A missing or
+reused `state`, a state cookie that does not match, or an ID token Google will not verify becomes
+`/login?google=failed`. `email_verified` other than boolean true becomes
+`/login?google=unverified_email`. An existing PlanIT user whose email is not verified becomes
+`/login?google=verify_email`, and no `oauth_accounts` row is written. A verified user is linked.
+A new user is created with `passwordHash` null and `emailVerifiedAt` set.
+
+Audit actions are `auth.google_link_succeeded` (`outcome` `created`, `linked`, or `signed_in`) and
+`auth.google_link_failed` (`reason` only). Rows do not store the authorization code, tokens,
+verifier, nonce, or client secret.
 
 ## Planned route groups
 
@@ -147,7 +175,7 @@ All are under `/api/v1`, authenticated unless noted, and owner-scoped.
 
 | Group               | Phase | Highlights                                                                                                                                      |
 | ------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/auth`             | 2     | Still to build: `GET google/start`, `GET google/callback`. Password reset and session list/revoke are implemented above.                        |
+| `/auth`             | 2     | Google sign-in is implemented above. Further auth work is the Phase 2 security pass.                                                            |
 | `/users/me`         | 2     | Implemented above. Further profile fields (username, bio, privacy) are Phase 8.                                                                 |
 | `/settings`         | 2+    | `weekStartsOn` and notification preferences. Theme is `PATCH /users/me/theme`.                                                                  |
 | `/tasks`            | 3     | CRUD, `POST :id/complete`, `POST :id/reopen`, `PATCH :id/position` (fractional index), filters: `status`, `priority`, `due`, `scheduledFrom/To` |

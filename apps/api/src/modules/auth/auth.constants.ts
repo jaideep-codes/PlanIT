@@ -31,7 +31,17 @@ export const AUDIT_ACTIONS = {
   PASSWORD_RESET: 'auth.password_reset',
   SESSION_REVOKED: 'auth.session_revoked',
   SESSIONS_REVOKED: 'auth.sessions_revoked',
+  GOOGLE_LINK_SUCCEEDED: 'auth.google_link_succeeded',
+  GOOGLE_LINK_FAILED: 'auth.google_link_failed',
 } as const;
+
+/** How long a Google authorization request (state, PKCE verifier, nonce) may be redeemed. */
+export const GOOGLE_STATE_TTL_SECONDS = 10 * 60;
+
+export const GOOGLE_UNAVAILABLE_MESSAGE = 'Google sign-in is not configured.';
+export const GOOGLE_FAILED_MESSAGE = 'Google sign-in could not be completed.';
+export const GOOGLE_UNVERIFIED_EMAIL_MESSAGE = 'Google has not verified this email.';
+export const GOOGLE_UNVERIFIED_ACCOUNT_MESSAGE = 'Verify your email before linking Google.';
 
 interface Bucket {
   limit: number;
@@ -86,6 +96,13 @@ export const AUTH_RATE_LIMITS = {
   passwordReset: {
     email: { limit: 20, windowSeconds: 15 * 60 },
     ip: { limit: 40, windowSeconds: 15 * 60 },
+  },
+  googleStart: {
+    ip: { limit: 20, windowSeconds: 15 * 60 },
+  },
+  /** The browser returns here from Google. Keyed by IP because the email is not known yet. */
+  googleCallback: {
+    ip: { limit: 30, windowSeconds: 15 * 60 },
   },
 } as const satisfies Record<string, AuthLimit>;
 

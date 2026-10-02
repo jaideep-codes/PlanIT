@@ -33,3 +33,8 @@ export interface SessionRevocation {
   status: 'revoked';
   currentSessionRevoked: boolean;
 }
+
+/** Whether the API has Google credentials. This is not a login result. */
+export interface GoogleSignInAvailability {
+  available: boolean;
+}

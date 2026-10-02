@@ -30,6 +30,85 @@ function base64Bytes(size: number) {
   });
 }
 
+function addGoogleOAuthIssues(
+  env: {
+    NODE_ENV: (typeof NODE_ENVS)[number];
+    WEB_ORIGINS: string[];
+    GOOGLE_CLIENT_ID: string;
+    GOOGLE_CLIENT_SECRET: string;
+    GOOGLE_REDIRECT_URI: string;
+  },
+  ctx: z.RefinementCtx,
+): void {
+  const id = env.GOOGLE_CLIENT_ID;
+  const secret = env.GOOGLE_CLIENT_SECRET;
+  const redirect = env.GOOGLE_REDIRECT_URI;
+  const present = [id, secret, redirect].filter((value) => value.length > 0).length;
+  if (present === 0) return;
+  if (present !== 3) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['GOOGLE_CLIENT_ID'],
+      message:
+        'GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI must all be set or all be empty',
+    });
+    return;
+  }
+  if (id.length > 256 || secret.length > 512) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['GOOGLE_CLIENT_ID'],
+      message:
+        'GOOGLE_CLIENT_ID must be at most 256 characters and GOOGLE_CLIENT_SECRET at most 512',
+    });
+    return;
+  }
+  let url: URL;
+  try {
+    url = new URL(redirect);
+  } catch {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['GOOGLE_REDIRECT_URI'],
+      message: 'must be an absolute http(s) URL',
+    });
+    return;
+  }
+  if (url.username || url.password || url.search || url.hash) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['GOOGLE_REDIRECT_URI'],
+      message: 'must not include credentials, a query, or a fragment',
+    });
+    return;
+  }
+  const localhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+  const localHttp = env.NODE_ENV !== 'production' && url.protocol === 'http:' && localhost;
+  if (url.protocol !== 'https:' && !localHttp) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['GOOGLE_REDIRECT_URI'],
+      message: 'must use https, or http://localhost in development',
+    });
+    return;
+  }
+  if (url.pathname !== '/api/v1/auth/google/callback') {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['GOOGLE_REDIRECT_URI'],
+      message: 'must use the path /api/v1/auth/google/callback',
+    });
+    return;
+  }
+  if (!env.WEB_ORIGINS.includes(url.origin)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['GOOGLE_REDIRECT_URI'],
+      message: 'origin must be one of WEB_ORIGINS',
+    });
+  }
+}
+
 const originList = z
   .string()
   .transform((value) =>
@@ -65,8 +144,25 @@ export const envSchema = z
     SMTP_FROM: z.string().min(3),
     SMTP_USER: z.string().optional().default(''),
     SMTP_PASSWORD: z.string().optional().default(''),
+    /**
+     * Google sign-in. All three stay empty until the flow is configured. The client secret
+     * is read only by the API. None of these may use a NEXT_PUBLIC_ name.
+     */
+    GOOGLE_CLIENT_ID: z
+      .string()
+      .default('')
+      .transform((value) => value.trim()),
+    GOOGLE_CLIENT_SECRET: z
+      .string()
+      .default('')
+      .transform((value) => value.trim()),
+    GOOGLE_REDIRECT_URI: z
+      .string()
+      .default('')
+      .transform((value) => value.trim()),
   })
   .superRefine((env, ctx) => {
+    addGoogleOAuthIssues(env, ctx);
     if (env.NODE_ENV !== 'production') return;
     for (const origin of env.WEB_ORIGINS) {
       if (!origin.startsWith('https://')) {

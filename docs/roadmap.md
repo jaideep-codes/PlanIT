@@ -26,8 +26,8 @@ Each phase ends runnable, typed, linted and tested, with documentation updated, 
 
 Part 1 is implemented: signup, email OTP verification, login, logout, rotating refresh sessions,
 the session guard, audit events for those actions, and the email queue. Part 2 is implemented:
-password reset, the current user, theme persistence, and session list/revoke. Still open:
-Google login (Part 3); Playwright, CI, and the Phase 2 security pass (Part 4).
+password reset, the current user, theme persistence, and session list/revoke. Part 3 is
+implemented: Google sign-in. Still open: Playwright, CI, and the Phase 2 security pass (Part 4).
 
 ## Deliberately deferred (not to be built without explicit instruction)
 

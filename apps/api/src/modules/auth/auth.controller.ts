@@ -13,6 +13,7 @@ import {
 import {
   ACCESS_COOKIE_NAME,
   emptyRequestSchema,
+  ERROR_CODES,
   loginRequestSchema,
   otpResendRequestSchema,
   otpVerifyRequestSchema,
@@ -32,15 +33,28 @@ import type { AuthAcknowledgement, AuthSessionList, SessionRevocation } from '@p
 import type { Request, Response } from 'express';
 
 import { Public } from '../../common/auth/public.decorator.js';
+import { AppException } from '../../common/errors/app.exception.js';
 import { ZodValidationPipe } from '../../common/validation/zod-validation.pipe.js';
-import { clearSessionCookies, readCookie, writeSessionCookies } from './auth.cookies.js';
+import { GOOGLE_UNAVAILABLE_MESSAGE } from './auth.constants.js';
+import {
+  clearOAuthStateCookie,
+  clearSessionCookies,
+  OAUTH_STATE_COOKIE_NAME,
+  readCookie,
+  writeOAuthStateCookie,
+  writeSessionCookies,
+} from './auth.cookies.js';
 import { AuthService } from './auth.service.js';
 import { CurrentUser, type AuthenticatedUser } from './current-user.decorator.js';
+import { GoogleOAuthService, GoogleSignInException } from './google-oauth.service.js';
 import { requestMeta } from './request-meta.js';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly google: GoogleOAuthService,
+  ) {}
 
   @Public()
   @Post('signup')
@@ -176,4 +190,51 @@ export class AuthController {
     if (result.currentSessionRevoked) clearSessionCookies(response);
     return result;
   }
+
+  @Public()
+  @Get('google/start')
+  async googleStart(@Req() req: Request, @Res() response: Response): Promise<void> {
+    if (acceptsAvailability(req)) {
+      response.status(HttpStatus.OK).json({ available: this.google.isConfigured() });
+      return;
+    }
+    if (!this.google.isConfigured()) {
+      throw new AppException(
+        ERROR_CODES.SERVICE_UNAVAILABLE,
+        GOOGLE_UNAVAILABLE_MESSAGE,
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+    const started = await this.google.begin(requestMeta(req));
+    writeOAuthStateCookie(response, started.stateHash);
+    response.redirect(HttpStatus.FOUND, started.url);
+  }
+
+  @Public()
+  @Get('google/callback')
+  async googleCallback(@Req() req: Request, @Res() response: Response): Promise<void> {
+    const stateCookie = readCookie(req.headers.cookie, OAUTH_STATE_COOKIE_NAME);
+    if (stateCookie) clearOAuthStateCookie(response);
+    try {
+      const session = await this.google.complete(req.query, stateCookie, requestMeta(req));
+      writeSessionCookies(response, session);
+      response.setHeader('Referrer-Policy', 'no-referrer');
+      response.redirect(HttpStatus.SEE_OTHER, this.google.successUrl());
+    } catch (error) {
+      if (error instanceof GoogleSignInException && this.google.isConfigured()) {
+        response.setHeader('Referrer-Policy', 'no-referrer');
+        response.redirect(HttpStatus.SEE_OTHER, this.google.failureUrl(error.reason));
+        return;
+      }
+      throw error;
+    }
+  }
+}
+
+/** A JSON client is asking whether Google is configured. A browser navigation is not. */
+function acceptsAvailability(req: Request): boolean {
+  const header = req.headers.accept;
+  if (typeof header !== 'string') return false;
+  const types = header.split(',').map((part) => part.split(';')[0]?.trim().toLowerCase());
+  return types.includes('application/json') && !types.includes('text/html');
 }

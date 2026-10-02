@@ -51,8 +51,8 @@ schema-versioned and validated by Zod in `@planit/shared`).
 ## Implemented (Phase 2 Part 1)
 
 Migration `20261001222857_auth_credentials`. Password reset uses the `PASSWORD_RESET` OTP purpose
-and session revoke reason from that migration. Google login is not built; `oauth_accounts` is in
-place so Part 3 does not need another migration (decision D-030).
+and session revoke reason from that migration. Google sign-in uses the `oauth_accounts` table
+from that migration, so Part 3 did not add another migration (decision D-030, D-034).
 
 - **`auth_sessions`**: `id, user_id, family_id, refresh_token_hash` (unique SHA-256 hex),
   `expires_at, revoked_at?, revoked_reason? (LOGOUT | ROTATED | REUSE | PASSWORD_RESET),
@@ -64,7 +64,7 @@ code_hash` (HMAC-SHA256 hex), `expires_at, attempts, consumed_at?, created_at`. 
   is normalised, hash is 64 hex characters, attempts are 0–5. Index `(email, purpose, created_at)`.
   A maintenance job deletes a row only after `expires_at` plus 24 hours.
 - **`oauth_accounts`**: `id, user_id, provider (GOOGLE), provider_account_id, created_at`; unique
-  `(provider, provider_account_id)`. Unused until Part 3.
+  `(provider, provider_account_id)`. One Google subject links to one PlanIT user.
 - **`audit_logs`** (append-only via a trigger that rejects `UPDATE` and `DELETE`): `id, user_id?
 (ON DELETE SET NULL), actor_type (USER | SYSTEM | AI_PROPOSAL), action, target_type?, target_id?,
 metadata` (JSONB object), `request_id?, ip_hash?, created_at`. CHECKs: action matches
