@@ -38,6 +38,15 @@ export function preferenceToSort(preference: StoredTaskSort): ResolvedTaskSort {
   return { field: PREFERENCE_FIELD[preference], descending: false };
 }
 
+/** Inverse of {@link preferenceToSort}. Uses the same table; direction is never stored. */
+export function preferenceFromSortField(field: TaskSortField): StoredTaskSort {
+  const stored = (Object.keys(PREFERENCE_FIELD) as StoredTaskSort[]).find(
+    (key) => PREFERENCE_FIELD[key] === field,
+  );
+  if (stored === undefined) throw new Error('Unknown task sort field.');
+  return stored;
+}
+
 export function parseSort(value: string): ResolvedTaskSort {
   const descending = value.startsWith('-');
   const field = (descending ? value.slice(1) : value) as TaskSortField;

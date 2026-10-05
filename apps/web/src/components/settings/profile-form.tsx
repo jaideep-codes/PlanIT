@@ -10,8 +10,7 @@ import { useForm } from 'react-hook-form';
 
 import { AuthField } from '@/components/auth/auth-field';
 import { ApiError, apiGet, apiPatch } from '@/lib/api/api-client';
-
-export const currentUserQueryKey = ['users', 'me'] as const;
+import { currentUserQueryKey } from '@/lib/api/current-user';
 
 export function ProfileForm() {
   const query = useQuery({

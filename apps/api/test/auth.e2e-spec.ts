@@ -464,6 +464,7 @@ describe('credential auth (e2e)', () => {
     const meBody = currentUserSchema.parse(me.body);
     expect(meBody.email).toBe(email);
     expect(meBody.theme).toBe('system');
+    expect(meBody.defaultTaskSort).toBe('manual');
     expectNoSecrets(me.body, PASSWORD);
 
     const rejected = await request(app.getHttpServer())
@@ -476,6 +477,7 @@ describe('credential auth (e2e)', () => {
         passwordHash: 'x',
         userId: otherEmail,
         theme: 'dark',
+        defaultTaskSort: 'priority',
       })
       .expect(400);
     expect(errorOf(rejected).code).toBe('VALIDATION_ERROR');
@@ -492,6 +494,7 @@ describe('credential auth (e2e)', () => {
       displayName: 'Ada Lovelace',
       timezone: 'Asia/Kolkata',
       theme: 'system',
+      defaultTaskSort: 'manual',
     });
     expectNoSecrets(profile.body);
 
@@ -501,7 +504,10 @@ describe('credential auth (e2e)', () => {
       .set('Cookie', `${ACCESS_COOKIE_NAME}=${secondAccess}`)
       .send({ theme: 'dark' })
       .expect(200);
-    expect(currentUserSchema.parse(themed.body).theme).toBe('dark');
+    expect(currentUserSchema.parse(themed.body)).toMatchObject({
+      theme: 'dark',
+      defaultTaskSort: 'manual',
+    });
     expectNoSecrets(themed.body);
 
     const listed = await request(app.getHttpServer())
@@ -560,6 +566,7 @@ describe('credential auth (e2e)', () => {
     expect(currentUserSchema.parse(persisted.body)).toMatchObject({
       theme: 'dark',
       displayName: 'Ada Lovelace',
+      defaultTaskSort: 'manual',
     });
     expectNoSecrets(persisted.body);
 

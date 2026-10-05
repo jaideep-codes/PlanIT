@@ -383,6 +383,24 @@ supersedes it. Format: context → decision → consequences.
   `200` with the deleted task. Forward `priority` sort is HIGH, then MEDIUM, then LOW. Forward due
   and scheduled sorts are earliest first, with nulls last.
 - **Consequences:** `recurringTaskId` is not a column yet. `default_task_sort` is read when `sort`
-  is omitted and is not editable in this part. `IN_PROGRESS` is only a status set through `PATCH`.
-  A later recurrence part adds `RecurringTask`, `TaskOccurrence`, and the link column. Exhausted
-  manual-order gaps need a future rebalance if a user ever hits 409.
+  is omitted. Part 1 did not edit it; Part 2 saves it on `PATCH /users/me/task-sort` (decision
+  D-040). `IN_PROGRESS` is only a status set through `PATCH`. A later recurrence part adds
+  `RecurringTask`, `TaskOccurrence`, and the link column. Exhausted manual-order gaps need a future
+  rebalance if a user ever hits 409.
+
+### D-040 Task sort is its own route, and schedule times use the account timezone
+
+- **Context:** `default_task_sort` already exists and the task list uses it when `sort` is omitted
+  (decision D-039). The Home list has to show and change that preference without widening
+  `PATCH /users/me`. A schedule typed into the form is a wall time, while the API stores UTC
+  instants. `dueDate` is a calendar date.
+- **Decision:** `GET /users/me` includes `defaultTaskSort` in the list vocabulary (`manual`,
+  `priority`, `dueDate`, `scheduledStart`, `createdAt`), mapped with the existing
+  `preferenceToSort` table. A missing preference row is `manual`. `PATCH /users/me/task-sort` is
+  the only writer. Its body is the strict object `{ "defaultTaskSort" }`. Direction is not stored.
+  `PATCH /users/me` and `PATCH /users/me/theme` still reject the field. Schedule controls interpret
+  wall times in `CurrentUser.timezone` and send UTC ISO instants. Due dates stay `YYYY-MM-DD`
+  with no conversion.
+- **Consequences:** Changing the account timezone changes how existing instants are displayed. It
+  does not rewrite stored instants. Sort direction resets when Home is reloaded. An exhausted
+  fractional-index gap is still a 409 and is not rebalanced here.

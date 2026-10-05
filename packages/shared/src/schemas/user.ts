@@ -1,6 +1,8 @@
 import type { CurrentUser, ThemePreference } from '@planit/types';
 import { z } from 'zod';
 
+import { TASK_SORT_FIELDS } from './task.js';
+
 export const THEME_PREFERENCES = [
   'light',
   'dark',
@@ -53,6 +55,11 @@ export const updateThemeRequestSchema = z.strictObject({
   theme: themePreferenceSchema,
 });
 
+/** List vocabulary only. Direction is chosen per request and is not saved. */
+export const updateTaskSortRequestSchema = z.strictObject({
+  defaultTaskSort: z.enum(TASK_SORT_FIELDS),
+});
+
 export const currentUserSchema = z.strictObject({
   id: z.uuid(),
   email: z.email(),
@@ -60,8 +67,10 @@ export const currentUserSchema = z.strictObject({
   timezone: z.string(),
   emailVerifiedAt: z.iso.datetime().nullable(),
   theme: themePreferenceSchema,
+  defaultTaskSort: z.enum(TASK_SORT_FIELDS),
   createdAt: z.iso.datetime(),
 }) satisfies z.ZodType<CurrentUser>;
 
 export type UpdateCurrentUserRequest = z.infer<typeof updateCurrentUserRequestSchema>;
 export type UpdateThemeRequest = z.infer<typeof updateThemeRequestSchema>;
+export type UpdateTaskSortRequest = z.infer<typeof updateTaskSortRequestSchema>;

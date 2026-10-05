@@ -13,6 +13,7 @@ const savedUser = {
   timezone: 'UTC',
   emailVerifiedAt: '2026-10-01T00:00:00.000Z',
   theme: 'dark',
+  defaultTaskSort: 'manual',
   createdAt: '2026-10-01T00:00:00.000Z',
 };
 

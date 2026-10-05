@@ -4,7 +4,13 @@ import { randomUUID } from 'node:crypto';
 
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
-import { ACCESS_COOKIE_NAME, apiErrorBodySchema, taskListSchema, taskSchema } from '@planit/shared';
+import {
+  ACCESS_COOKIE_NAME,
+  apiErrorBodySchema,
+  currentUserSchema,
+  taskListSchema,
+  taskSchema,
+} from '@planit/shared';
 import type { Task } from '@planit/types';
 import { Queue } from 'bullmq';
 import { Redis } from 'ioredis';
@@ -579,5 +585,66 @@ describe('one-off tasks (e2e)', () => {
       }),
     ).rejects.toThrow();
     expect(await prisma.task.count({ where: { userId: owner.userId } })).toBe(0);
+  });
+
+  it('saves defaultTaskSort and lists without sort use it', async () => {
+    const anon = await client(app)
+      .patch('/api/v1/users/me/task-sort')
+      .send({ defaultTaskSort: 'priority' })
+      .expect(401);
+    expect(errorOf(anon).code).toBe('UNAUTHENTICATED');
+    expectOwnerProjection(anon.body);
+
+    const owner = await signIn('sort-pref');
+    const http = client(app, owner.token);
+    const me = currentUserSchema.parse((await http.get('/api/v1/users/me').expect(200)).body);
+    expect(me.defaultTaskSort).toBe('manual');
+    expectOwnerProjection(me);
+
+    const make = async (body: Record<string, unknown>) =>
+      taskSchema.parse((await http.post('/api/v1/tasks').send(body).expect(201)).body);
+    const high = await make({ title: 'High', priority: 'HIGH' });
+    const low = await make({ title: 'Low', priority: 'LOW' });
+
+    const manual = taskListSchema.parse((await http.get('/api/v1/tasks').expect(200)).body);
+    expect(manual.items.map((item) => item.id)).toEqual([low.id, high.id]);
+
+    const rejectedProfile = await http
+      .patch('/api/v1/users/me')
+      .send({ displayName: 'Ada', defaultTaskSort: 'priority' })
+      .expect(400);
+    expect(errorOf(rejectedProfile).code).toBe('VALIDATION_ERROR');
+    const rejectedTheme = await http
+      .patch('/api/v1/users/me/theme')
+      .send({ theme: 'dark', defaultTaskSort: 'priority' })
+      .expect(400);
+    expect(errorOf(rejectedTheme).code).toBe('VALIDATION_ERROR');
+    const rejectedDirection = await http
+      .patch('/api/v1/users/me/task-sort')
+      .send({ defaultTaskSort: '-priority' })
+      .expect(400);
+    expect(errorOf(rejectedDirection).code).toBe('VALIDATION_ERROR');
+
+    const saved = currentUserSchema.parse(
+      (
+        await http
+          .patch('/api/v1/users/me/task-sort')
+          .send({ defaultTaskSort: 'priority' })
+          .expect(200)
+      ).body,
+    );
+    expect(saved.defaultTaskSort).toBe('priority');
+    expect(saved.theme).toBe('system');
+    expectOwnerProjection(saved);
+
+    const byPreference = taskListSchema.parse((await http.get('/api/v1/tasks').expect(200)).body);
+    expect(byPreference.items.map((item) => item.id)).toEqual([high.id, low.id]);
+
+    const prisma = app.get(PrismaService);
+    await prisma.userPreference.delete({ where: { userId: owner.userId } });
+    const missing = currentUserSchema.parse((await http.get('/api/v1/users/me').expect(200)).body);
+    expect(missing.defaultTaskSort).toBe('manual');
+    const fallback = taskListSchema.parse((await http.get('/api/v1/tasks').expect(200)).body);
+    expect(fallback.items.map((item) => item.id)).toEqual([low.id, high.id]);
   });
 });

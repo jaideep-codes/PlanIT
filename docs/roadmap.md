@@ -8,7 +8,7 @@ Each phase ends runnable, typed, linted and tested, with documentation updated, 
 | 0     | Architecture, repository bootstrap, documentation, conventions                                                                                                                                               | ✅ Done       |
 | 1     | Foundation: TypeScript, Postgres + Prisma, Redis, Docker, env config, logging, errors, health checks, frontend shell, theme system, base UI                                                                  | ✅ Done       |
 | 2     | Auth: signup, email/password, mandatory email OTP, login/logout, Google login, password reset, sessions (rotating refresh tokens), route protection, audit log, BullMQ + email queue, Playwright E2E harness | ✅ Done       |
-| 3     | Tasks: one-off CRUD, priority, notes, due dates, scheduling, estimates, sort/filter, manual order, completion. Recurrence and the Home task UI have not started                                              | In progress   |
+| 3     | Tasks: one-off CRUD, priority, notes, due dates, scheduling, estimates, sort/filter, manual order, completion, and the Home task list. Recurrence has not started                                            | In progress   |
 | 4     | Focus engine: start/pause/resume/stop, server-authoritative timing, active-session recovery, history, task association                                                                                       | Planned       |
 | 5     | Dashboard + internal calendar: progress, priority progress, focus today, active timer, day/week views, focus history; in-app notifications basics; PWA service worker                                        | Planned       |
 | 6     | Statistics: daily/weekly/monthly/all-time, heatmap, records, streaks, aggregation jobs, analytics cache                                                                                                      | Planned       |
@@ -32,8 +32,9 @@ browser harness, CI (browser tests and the secret scan), and the Phase 2 securit
 ## Phase 3 (in progress)
 
 Part 1 is the one-off task API: create, read, update, delete, complete, reopen, manual position,
-filter, and sort. Parts 2, 3, and 4 have not started. Recurrence and the Home task UI are not part
-of Part 1. Focus, the calendar, and the dashboard remain later phases.
+filter, and sort. Part 2 is the Home task list: quick add, edit, complete, reopen, delete, filter,
+sort (including the saved default), and manual move up and down. Parts 3 and 4 (recurrence) have
+not started. Focus, the calendar, and the dashboard progress UI remain later phases.
 
 ## Deliberately deferred (not to be built without explicit instruction)
 

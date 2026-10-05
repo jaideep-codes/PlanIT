@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { updateCurrentUserRequestSchema, updateThemeRequestSchema } from './user.js';
+import {
+  updateCurrentUserRequestSchema,
+  updateTaskSortRequestSchema,
+  updateThemeRequestSchema,
+} from './user.js';
 
 describe('current user schemas', () => {
   it('accepts a display name and an IANA timezone', () => {
@@ -35,5 +39,30 @@ describe('current user schemas', () => {
     expect(updateThemeRequestSchema.parse({ theme: 'dark' })).toEqual({ theme: 'dark' });
     expect(updateThemeRequestSchema.safeParse({ theme: 'neon' }).success).toBe(false);
     expect(updateThemeRequestSchema.safeParse({ theme: 'DARK', userId: 'x' }).success).toBe(false);
+    expect(
+      updateThemeRequestSchema.safeParse({ theme: 'dark', defaultTaskSort: 'manual' }).success,
+    ).toBe(false);
+  });
+
+  it('accepts the five list sort fields and rejects direction, profile, and theme', () => {
+    expect(updateTaskSortRequestSchema.parse({ defaultTaskSort: 'dueDate' })).toEqual({
+      defaultTaskSort: 'dueDate',
+    });
+    expect(updateTaskSortRequestSchema.safeParse({ defaultTaskSort: 'manual' }).success).toBe(true);
+    expect(updateTaskSortRequestSchema.safeParse({ defaultTaskSort: '-priority' }).success).toBe(
+      false,
+    );
+    expect(updateTaskSortRequestSchema.safeParse({ defaultTaskSort: 'MANUAL' }).success).toBe(
+      false,
+    );
+    expect(
+      updateTaskSortRequestSchema.safeParse({ defaultTaskSort: 'priority', theme: 'dark' }).success,
+    ).toBe(false);
+    expect(
+      updateCurrentUserRequestSchema.safeParse({
+        displayName: 'Ada',
+        defaultTaskSort: 'manual',
+      }).success,
+    ).toBe(false);
   });
 });

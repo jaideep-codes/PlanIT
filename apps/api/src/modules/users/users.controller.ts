@@ -1,8 +1,10 @@
 import { Body, Controller, Get, Patch } from '@nestjs/common';
 import {
   updateCurrentUserRequestSchema,
+  updateTaskSortRequestSchema,
   updateThemeRequestSchema,
   type UpdateCurrentUserRequest,
+  type UpdateTaskSortRequest,
   type UpdateThemeRequest,
 } from '@planit/shared';
 import type { CurrentUser } from '@planit/types';
@@ -37,5 +39,13 @@ export class UsersController {
     @Body(new ZodValidationPipe(updateThemeRequestSchema)) body: UpdateThemeRequest,
   ): Promise<CurrentUser> {
     return this.users.updateTheme(user.id, body);
+  }
+
+  @Patch('me/task-sort')
+  updateTaskSort(
+    @CurrentUserParam() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(updateTaskSortRequestSchema)) body: UpdateTaskSortRequest,
+  ): Promise<CurrentUser> {
+    return this.users.updateTaskSort(user.id, body);
   }
 }

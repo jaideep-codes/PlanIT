@@ -2,6 +2,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import {
   ERROR_CODES,
   type UpdateCurrentUserRequest,
+  type UpdateTaskSortRequest,
   type UpdateThemeRequest,
 } from '@planit/shared';
 import type { CurrentUser } from '@planit/types';
@@ -23,6 +24,10 @@ export class UsersService {
 
   async updateTheme(userId: string, input: UpdateThemeRequest): Promise<CurrentUser> {
     return this.require(await this.users.updateTheme(userId, input.theme));
+  }
+
+  async updateTaskSort(userId: string, input: UpdateTaskSortRequest): Promise<CurrentUser> {
+    return this.require(await this.users.updateTaskSort(userId, input.defaultTaskSort));
   }
 
   private require(user: CurrentUser | null): CurrentUser {

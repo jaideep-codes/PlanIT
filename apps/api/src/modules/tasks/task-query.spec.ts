@@ -1,9 +1,25 @@
 import { describe, expect, it } from 'vitest';
 
-import { taskPageOrderBy, taskPageWhere } from './task-query.js';
+import {
+  preferenceFromSortField,
+  preferenceToSort,
+  taskPageOrderBy,
+  taskPageWhere,
+} from './task-query.js';
 
 const USER = '01990000-0000-7000-8000-000000000010';
 const ID = '01990000-0000-7000-8000-000000000011';
+
+describe('stored task sort', () => {
+  it('maps each preference to one forward list field and back', () => {
+    const stored = ['MANUAL', 'PRIORITY', 'DUE_DATE', 'SCHEDULED_START', 'CREATED_AT'] as const;
+    for (const preference of stored) {
+      const sort = preferenceToSort(preference);
+      expect(sort.descending).toBe(false);
+      expect(preferenceFromSortField(sort.field)).toBe(preference);
+    }
+  });
+});
 
 describe('task page query', () => {
   it('scopes every page by the caller and keeps filters in one where clause', () => {

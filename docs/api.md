@@ -1,7 +1,8 @@
 # API
 
-> Implemented: health checks, Phase 2 auth (including Google sign-in), and Phase 3 Part 1 one-off
-> tasks. Remaining route groups are listed as **planned**. Recurrence is not implemented.
+> Implemented: health checks, Phase 2 auth (including Google sign-in), Phase 3 Part 1 one-off
+> tasks, and the saved task sort on the current user. Remaining route groups are listed as
+> **planned**. Recurrence is not implemented.
 
 ## Conventions
 
@@ -127,9 +128,14 @@ objects. A reset code is entered by the person; it is never put in a URL.
 | GET    | `/api/v1/users/me`                    | the owner projection below                                                               |
 | PATCH  | `/api/v1/users/me`                    | the same projection. Accepts only `displayName` and `timezone`.                          |
 | PATCH  | `/api/v1/users/me/theme`              | the same projection. Accepts only `theme` (`light`, `dark`, or `system`).                |
+| PATCH  | `/api/v1/users/me/task-sort`          | the same projection. Accepts only `defaultTaskSort` (see below).                         |
 
 `GET /api/v1/users/me` returns `id`, `email`, `displayName`, `timezone`, `emailVerifiedAt`,
-`theme`, and `createdAt`. It never returns `passwordHash`. Session items are `id`, `createdAt`,
+`theme`, `defaultTaskSort`, and `createdAt`. It never returns `passwordHash`. `defaultTaskSort`
+is `manual`, `priority`, `dueDate`, `scheduledStart`, or `createdAt`. A missing preference row
+is `manual`. `PATCH /api/v1/users/me/task-sort` is the only writer. The body is
+`{ "defaultTaskSort": "<one of those five>" }`. A leading `-` is rejected. `PATCH /users/me` and
+`PATCH /users/me/theme` reject the field. Session items are `id`, `createdAt`,
 `lastUsedAt`, `expiresAt`, `userAgent`, and `current`. They never include a token or token hash.
 
 Forgot-password limits: one request per email per 60 seconds, and five per email per hour, plus
@@ -139,8 +145,8 @@ Redis failures on these routes are `503`.
 
 Schemas: `passwordForgotRequestSchema`, `passwordResetRequestSchema`, `sessionIdSchema`,
 `authSessionListSchema`, `sessionRevocationSchema`, `updateCurrentUserRequestSchema`,
-`updateThemeRequestSchema`, `currentUserSchema`, `googleCallbackQuerySchema`,
-`googleSignInAvailabilitySchema` in `@planit/shared`.
+`updateThemeRequestSchema`, `updateTaskSortRequestSchema`, `currentUserSchema`,
+`googleCallbackQuerySchema`, `googleSignInAvailabilitySchema` in `@planit/shared`.
 
 ### Google sign-in (Phase 2 Part 3)
 
@@ -209,8 +215,9 @@ accept one value or a repeated key; values within a field are OR, and different 
 with `scheduledStart`. `sort` is `manual`, `priority`, `dueDate`, `scheduledStart`, or `createdAt`.
 A leading `-` reverses it. Forward `priority` is HIGH, then MEDIUM, then LOW. Forward dates are
 earliest first, with nulls last. Forward `manual` and `createdAt` are ascending. Every order breaks
-ties by `id`. When `sort` is omitted, the list uses `user_preferences.default_task_sort`. That
-preference is not editable in this part.
+ties by `id`. When `sort` is omitted, the list uses `user_preferences.default_task_sort`.
+`GET /users/me` returns that value as `defaultTaskSort`, and `PATCH /users/me/task-sort` saves it.
+Direction is not stored (decision D-040).
 
 `cursor` is an opaque base64url value for one sort and filter combination. A cursor that cannot be
 read, or that was issued for a different sort or filter, is `400`. `PATCH` position sends optional
