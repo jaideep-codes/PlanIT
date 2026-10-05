@@ -194,6 +194,8 @@ export class AuthController {
   @Public()
   @Get('google/start')
   async googleStart(@Req() req: Request, @Res() response: Response): Promise<void> {
+    // The redirect carries `state`. no-referrer keeps that URL out of the next request's Referer.
+    response.setHeader('Referrer-Policy', 'no-referrer');
     if (acceptsAvailability(req)) {
       response.status(HttpStatus.OK).json({ available: this.google.isConfigured() });
       return;
@@ -213,16 +215,17 @@ export class AuthController {
   @Public()
   @Get('google/callback')
   async googleCallback(@Req() req: Request, @Res() response: Response): Promise<void> {
+    // The callback URL can contain the authorization code. This header has to be the one the
+    // browser receives after the Next.js `/api` rewrite (decision D-037).
+    response.setHeader('Referrer-Policy', 'no-referrer');
     const stateCookie = readCookie(req.headers.cookie, OAUTH_STATE_COOKIE_NAME);
     if (stateCookie) clearOAuthStateCookie(response);
     try {
       const session = await this.google.complete(req.query, stateCookie, requestMeta(req));
       writeSessionCookies(response, session);
-      response.setHeader('Referrer-Policy', 'no-referrer');
       response.redirect(HttpStatus.SEE_OTHER, this.google.successUrl());
     } catch (error) {
       if (error instanceof GoogleSignInException && this.google.isConfigured()) {
-        response.setHeader('Referrer-Policy', 'no-referrer');
         response.redirect(HttpStatus.SEE_OTHER, this.google.failureUrl(error.reason));
         return;
       }

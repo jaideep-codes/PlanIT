@@ -63,6 +63,9 @@ describe('log redaction', () => {
         client_secret: 'google-secret',
         GOOGLE_CLIENT_SECRET: 'google-secret',
         code_verifier: 'pkce-verifier',
+        verifier: 'raw-pkce-verifier',
+        state: 'oauth-state-value',
+        error_description: 'do-not-log-this',
         nonce: 'oauth-nonce',
         id_token: 'signed-id-token',
       },
@@ -72,25 +75,36 @@ describe('log redaction', () => {
       client_secret: string;
       GOOGLE_CLIENT_SECRET: string;
       code_verifier: string;
+      verifier: string;
+      state: string;
+      error_description: string;
       nonce: string;
       id_token: string;
     };
     expect(output.client_secret).toBe('[REDACTED]');
     expect(output.GOOGLE_CLIENT_SECRET).toBe('[REDACTED]');
     expect(output.code_verifier).toBe('[REDACTED]');
+    expect(output.verifier).toBe('[REDACTED]');
+    expect(output.state).toBe('[REDACTED]');
+    expect(output.error_description).toBe('[REDACTED]');
     expect(output.nonce).toBe('[REDACTED]');
     expect(output.id_token).toBe('[REDACTED]');
     expect(text()).not.toContain('google-secret');
     expect(text()).not.toContain('pkce-verifier');
+    expect(text()).not.toContain('raw-pkce-verifier');
+    expect(text()).not.toContain('oauth-state-value');
+    expect(text()).not.toContain('do-not-log-this');
 
     const logged = serializeLoggedError(
       new Error(
-        'token request failed at https://oauth2.googleapis.com/token?code=auth-code&state=oauth-state',
+        'token request failed at https://oauth2.googleapis.com/token?code=auth-code&state=oauth-state&verifier=raw-pkce-verifier',
       ),
     );
     expect(logged.message).not.toContain('auth-code');
     expect(logged.message).not.toContain('oauth-state');
+    expect(logged.message).not.toContain('raw-pkce-verifier');
     expect(logged.message).toContain('code=[REDACTED]');
+    expect(logged.message).toContain('verifier=[REDACTED]');
   });
 
   it('logs a scrubbed error and keeps a non-secret error code', () => {

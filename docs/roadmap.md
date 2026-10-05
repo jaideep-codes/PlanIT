@@ -7,7 +7,7 @@ Each phase ends runnable, typed, linted and tested, with documentation updated, 
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
 | 0     | Architecture, repository bootstrap, documentation, conventions                                                                                                                                               | ✅ Done       |
 | 1     | Foundation: TypeScript, Postgres + Prisma, Redis, Docker, env config, logging, errors, health checks, frontend shell, theme system, base UI                                                                  | ✅ Done       |
-| 2     | Auth: signup, email/password, mandatory email OTP, login/logout, Google login, password reset, sessions (rotating refresh tokens), route protection, audit log, BullMQ + email queue, Playwright E2E harness | In progress   |
+| 2     | Auth: signup, email/password, mandatory email OTP, login/logout, Google login, password reset, sessions (rotating refresh tokens), route protection, audit log, BullMQ + email queue, Playwright E2E harness | ✅ Done       |
 | 3     | Tasks: CRUD, priority, notes, due dates, scheduling, estimates, sort/filter, manual order, completion; recurring tasks (daily/weekdays/weekly/monthly/custom, skip/edit one, edit series, stop)              | Planned       |
 | 4     | Focus engine: start/pause/resume/stop, server-authoritative timing, active-session recovery, history, task association                                                                                       | Planned       |
 | 5     | Dashboard + internal calendar: progress, priority progress, focus today, active timer, day/week views, focus history; in-app notifications basics; PWA service worker                                        | Planned       |
@@ -22,12 +22,14 @@ Each phase ends runnable, typed, linted and tested, with documentation updated, 
 | 14    | MCP server (**only when explicitly instructed**)                                                                                                                                                             | Not scheduled |
 | 15+   | External integrations (**only when explicitly instructed**): Google Calendar, GitHub, LinkedIn, Notion, Spotify, WhatsApp                                                                                    | Not scheduled |
 
-## Phase 2 (in progress)
+## Phase 2 (done)
 
-Part 1 is implemented: signup, email OTP verification, login, logout, rotating refresh sessions,
-the session guard, audit events for those actions, and the email queue. Part 2 is implemented:
-password reset, the current user, theme persistence, and session list/revoke. Part 3 is
-implemented: Google sign-in. Still open: Playwright, CI, and the Phase 2 security pass (Part 4).
+Part 1: signup, email OTP verification, login, logout, rotating refresh sessions, the session
+guard, audit events for those actions, and the email queue. Part 2: password reset, the current
+user, theme persistence, and session list/revoke. Part 3: Google sign-in. Part 4: the Playwright
+browser harness, CI (browser tests and the secret scan), and the Phase 2 security pass.
+
+Phase 3 has not been started.
 
 ## Deliberately deferred (not to be built without explicit instruction)
 

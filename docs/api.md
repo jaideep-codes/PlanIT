@@ -165,9 +165,11 @@ reused `state`, a state cookie that does not match, or an ID token Google will n
 `/login?google=verify_email`, and no `oauth_accounts` row is written. A verified user is linked.
 A new user is created with `passwordHash` null and `emailVerifiedAt` set.
 
-Audit actions are `auth.google_link_succeeded` (`outcome` `created`, `linked`, or `signed_in`) and
-`auth.google_link_failed` (`reason` only). Rows do not store the authorization code, tokens,
-verifier, nonce, or client secret.
+Audit actions are `auth.google_link_succeeded` (`provider` `google` and `outcome` `created`,
+`linked`, or `signed_in`) and `auth.google_link_failed` (`provider` `google`, `reason`, and when
+Google returned `error` an allowlisted `providerError`). Any other provider error is stored as
+`unknown`. Rows do not store the authorization code, tokens, verifier, nonce, client secret, or
+`error_description` (decision D-035).
 
 ## Planned route groups
 
@@ -175,7 +177,7 @@ All are under `/api/v1`, authenticated unless noted, and owner-scoped.
 
 | Group               | Phase | Highlights                                                                                                                                      |
 | ------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/auth`             | 2     | Google sign-in is implemented above. Further auth work is the Phase 2 security pass.                                                            |
+| `/auth`             | 2     | Implemented, including the Phase 2 security pass. Further providers, unlink, and email change are out of scope.                                 |
 | `/users/me`         | 2     | Implemented above. Further profile fields (username, bio, privacy) are Phase 8.                                                                 |
 | `/settings`         | 2+    | `weekStartsOn` and notification preferences. Theme is `PATCH /users/me/theme`.                                                                  |
 | `/tasks`            | 3     | CRUD, `POST :id/complete`, `POST :id/reopen`, `PATCH :id/position` (fractional index), filters: `status`, `priority`, `due`, `scheduledFrom/To` |

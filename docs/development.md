@@ -37,6 +37,8 @@ DATABASE_URL=postgresql://planit:planit_dev_password@127.0.0.1:5432/planit_test 
 | `pnpm typecheck`                                        | `tsc --noEmit` everywhere (web runs `next typegen` first)                                               |
 | `pnpm run test`                                         | unit tests (Vitest). Use `pnpm run test`, because `pnpm test` is a pnpm builtin that bypasses arguments |
 | `pnpm run test:e2e`                                     | API e2e tests against real Postgres (`planit_test`) and Redis (DB 1)                                    |
+| `pnpm run test:browser`                                 | Playwright browser tests at http://localhost:3000 (Postgres, Redis DB 2, Mailpit)                       |
+| `pnpm run scan:secrets`                                 | fail if known secret patterns are in tracked files; `-- --require-bundle` also scans the web build      |
 | `pnpm check`                                            | lint + typecheck + unit tests                                                                           |
 | `pnpm format` / `format:check`                          | Prettier (with Tailwind class sorting)                                                                  |
 | `pnpm services:up` / `services:down` / `services:reset` | start / stop / stop and delete volumes                                                                  |
@@ -95,11 +97,46 @@ so a deploy never requires downtime.
 | ------------------- | ------------------------------------------- | ------------------------------------------------------------- |
 | Unit                | Vitest (+ SWC for Nest), jsdom for UI       | pure logic, services with fakes, components, schemas          |
 | API integration/e2e | Vitest + supertest, real Postgres and Redis | HTTP stack, guards, ownership/IDOR, constraints, transactions |
-| Browser E2E         | Playwright (Phase 2 Part 4, not started)    | auth flows, critical journeys, BYOK network assertions        |
+| Browser E2E         | Playwright (`pnpm run test:browser`)        | auth flows, critical journeys; BYOK network hook for later    |
 | Static              | ESLint (boundaries), typecheck, audit       | architecture rules, type safety, dependency vulnerabilities   |
 
 Every user-owned resource gets an integration test proving another user cannot read, update or
 delete it. AI phases must cover all 28 scenarios in `docs/ai-security.md`.
+
+## Browser tests
+
+`pnpm run test:browser` runs Playwright against the web origin (`http://localhost:3000`). The
+browser does not call the API origin. `/api/*` is the app's rewrite, so session cookies stay
+first-party.
+
+Start Compose first (`pnpm services:up`: Postgres, Redis, and Mailpit). The harness applies
+migrations to `planit_test`, then starts the API, the email worker, and Next. The API and worker
+use Redis database 2 so they do not share rate-limit counters or the email queue with API e2e
+(database 1). Google sign-in is left unconfigured. One-time codes are read from Mailpit
+(<http://127.0.0.1:8025>) and are not printed.
+
+Install Chromium once:
+
+```bash
+pnpm --filter @planit/web exec playwright install chromium
+```
+
+Stop `pnpm dev` if port 3000 or 4000 is already taken. `PLAYWRIGHT_REUSE_SERVER=1` reuses those
+ports only when the processes already running are this test stack.
+
+`apps/web/e2e/support/network-guards.ts` records same-origin requests so later phases can assert
+that task, focus, and BYOK traffic does not carry secrets (`docs/ai-security.md`, layer E). Those
+product tests are not part of Phase 2. Failure traces and the HTML report are gitignored. CI
+uploads them when the browser step fails.
+
+## Continuous integration
+
+`.github/workflows/ci.yml` uses `contents: read` and `pnpm install --frozen-lockfile`. It starts
+Compose, applies migrations to `planit` and `planit_test`, then runs format, lint, typecheck, the
+tracked-file secret scan (the script plus gitleaks), unit tests, API e2e, the Playwright browser
+install, `pnpm run test:browser`, `pnpm build`, and a scan of `apps/web/.next/static`.
+`pnpm audit --prod` stays non-blocking until high and critical findings block a release. The
+workflow does not print secret values.
 
 ## Definition of Done (per feature)
 
@@ -108,7 +145,7 @@ delete it. AI phases must cover all 28 scenarios in `docs/ai-security.md`.
 3. Loading, empty and error states handled.
 4. Validation on both sides using the shared schemas.
 5. Unit and integration tests, including authorization tests.
-6. `pnpm lint`, `pnpm typecheck`, `pnpm run test` and `pnpm run test:e2e` pass.
+6. `pnpm lint`, `pnpm typecheck`, `pnpm run test`, `pnpm run test:e2e`, and `pnpm run test:browser` pass.
 7. Migrations apply cleanly to a fresh database.
 8. Documentation updated (`docs/`), including a decision entry for non-obvious choices.
 9. Security and performance reviewed (queries indexed, no N+1, no secrets logged).

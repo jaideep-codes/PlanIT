@@ -292,9 +292,69 @@ supersedes it. Format: context → decision → consequences.
   When they are empty, the button says Google sign-in is not configured and a navigation to start
   returns 503. There is no simulated Google login. Start and the callback are rate-limited per IP
   and fail closed if Redis is down. Audit rows record `auth.google_link_succeeded` or
-  `auth.google_link_failed` with an outcome or reason only.
+  `auth.google_link_failed`. The metadata allowlist is decision D-035.
 - **Consequences:** Part 3 does not add a migration. A Google-only account cannot use password
   login or password reset until a password exists (reset already refuses a null hash). An
   unverified password signup blocks Google for that email until the OTP is confirmed. An
   already-linked Google subject signs in as that user even when the email claim matches a
   different account. No OAuth token or authorization code is stored.
+
+### D-035 Google audit metadata is a fixed allowlist
+
+- **Context:** D-034 said Google audit rows record an outcome or reason only. The code also stores
+  `provider: "google"` and, when Google sends `error`, a `providerError`.
+- **Decision:** that metadata stays, and it is only these fields. Success rows are `provider` plus
+  `outcome` (`created`, `linked`, or `signed_in`). Failure rows are `provider` plus `reason`
+  (`invalid_state`, `denied`, `rejected`, `unverified_email`, `unverified_account`, or `inactive`).
+  A denial may add `providerError` from `access_denied`, `invalid_request`, `unauthorized_client`,
+  `server_error`, `temporarily_unavailable`, or `unknown`. Any other provider text, including
+  `error_description`, is not stored. The authorization code, tokens, verifier, nonce, and client
+  secret are not stored. This supersedes the "outcome or reason only" wording in D-034.
+- **Consequences:** operators can tell a user denial from an invalid state without a secret landing
+  in the audit log. Adding a field requires a new decision.
+
+### D-036 Browser E2E runs through the web origin
+
+- **Context:** auth cookies are first-party on the web origin because `/api/*` is rewritten. A
+  browser test that called the API origin directly would not exercise that path.
+- **Decision:** Playwright lives in `apps/web`. `pnpm run test:e2e` remains the API Vitest suite.
+  `pnpm run test:browser` is the browser suite. Tests use `http://localhost:3000`, apply migrations
+  to `planit_test`, and start the API, the email worker, and Next. The API and worker use Redis
+  database 2 so they do not share auth rate limits or the email queue with API e2e (database 1).
+  One-time codes are read from Mailpit and are not printed. Google environment variables are
+  forced empty, so the suite covers the unconfigured button and the `google` query allowlist, not
+  a simulated Google login. `PLAYWRIGHT_REUSE_SERVER=1` reuses ports 3000 and 4000 only when that
+  stack is already running. `e2e/support/network-guards.ts` is where later phases attach task,
+  focus, and BYOK request assertions (`docs/ai-security.md` layer E).
+- **Consequences:** Phase 2 does not add those product tests. CI installs Chromium and uploads
+  traces when the browser step fails. A failure trace can show a code that was typed into the
+  form; the test runner does not print it.
+
+### D-037 Rewritten API responses keep the API Referrer-Policy
+
+- **Context:** the Google callback URL can contain the authorization code. The next request must
+  not send that URL as Referer. `next.config.ts` sets `Referrer-Policy: strict-origin-when-cross-origin`
+  on `/:path*`, which would keep the full URL on a same-origin follow-up.
+- **Decision:** `/api/*` is an external rewrite. Next.js 16 returns that route before applying
+  `headers()`, then copies the upstream response, so the API's `Referrer-Policy` is what the
+  browser receives. Google start and callback set `no-referrer` on every response from those
+  routes, including the unconfigured 503. Pages keep `strict-origin-when-cross-origin`. A browser
+  test requests the callback through the web origin and asserts `no-referrer`. `TRUST_PROXY` stays
+  `false`.
+- **Consequences:** a later Next.js that starts applying config headers onto proxied responses
+  would fail that test and must not replace `no-referrer` on `/api/*`.
+
+### D-038 CI secret scan allowlist is only obvious fakes
+
+- **Context:** Phase 2 was going to fail the build when a known secret pattern appears in
+  committed files or the production web client bundle.
+- **Decision:** `pnpm run scan:secrets` scans git-tracked files. CI also runs gitleaks 8.30.1 with
+  `--redact`. After `pnpm build`, `pnpm run scan:secrets -- --require-bundle` scans
+  `apps/web/.next/static` for `passwordHash`, pepper and signing-key names, `GOOGLE_CLIENT_SECRET`,
+  `NEXT_PUBLIC_` secret names, JWT-like values, and the local database passwords. Tracked-file
+  allowlist: the three `local-dev-*` keys in `apps/api/.env.example`, localhost Postgres and Redis
+  URLs that use `planit_dev_password` or `planit_dev_redis`, and spec fixtures whose secret text
+  is exactly `secret`, `secret-password`, `secret-redis`, or `google-secret`. `pnpm audit --prod`
+  stays non-blocking. The workflow permission stays `contents: read`.
+- **Consequences:** a real credential in a spec file is still a failure unless it is one of those
+  exact fakes. Widening the allowlist needs a new decision.

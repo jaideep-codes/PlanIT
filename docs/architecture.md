@@ -67,6 +67,7 @@ apps/
       generated/       Prisma client (generated, git-ignored)
     test/              e2e tests against real Postgres/Redis
   web/                 Next.js 16 App Router (Turbopack), Tailwind CSS 4
+    e2e/               Playwright browser tests against the web origin
     src/
       app/             routes; (app)/ group holds the authenticated shell
       components/      feature and shell components
@@ -114,7 +115,7 @@ Rules (enforced by review; the first two also by ESLint in `apps/api/eslint.conf
 | Module                      | Phase | Responsibility                                                                                |
 | --------------------------- | ----- | --------------------------------------------------------------------------------------------- |
 | Health                      | 1 ✅  | liveness/readiness                                                                            |
-| Auth                        | 2 🟡  | Signup, OTP, login, logout, password reset, rotating sessions, session revoke, Google sign-in |
+| Auth                        | 2 ✅  | Signup, OTP, login, logout, password reset, rotating sessions, session revoke, Google sign-in |
 | Users / Profile / Privacy   | 2, 8  | current user (display name, timezone, theme). Public profiles remain                          |
 | Audit                       | 2 🟡  | append-only log; signup, login, logout, refresh reuse, password reset, session revoke, Google |
 | Entitlements                | 2 🟡  | reads `UserPlan`; `can(userId, 'pro')` is false on FREE. No Pro features                      |

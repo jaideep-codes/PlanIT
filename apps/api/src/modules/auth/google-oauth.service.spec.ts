@@ -528,11 +528,33 @@ describe('Google OAuth service', () => {
 
     expect(google.calls).toHaveLength(0);
     expect(state.saved.has(started.state)).toBe(false);
-    expect(audit.events.at(-1)).toMatchObject({
-      action: 'auth.google_link_failed',
-      metadata: { reason: 'denied', providerError: 'access_denied' },
+    expect(audit.events.at(-1)?.metadata).toEqual({
+      provider: 'google',
+      reason: 'denied',
+      providerError: 'access_denied',
     });
     expectNoOAuthSecrets(audit.events);
+  });
+
+  it('stores an unknown Google error as unknown and drops the raw provider text', async () => {
+    const { service, audit } = harness();
+    const started = await begin(service);
+    const leaked = 'provider-error-must-not-be-stored';
+
+    await expect(
+      service.complete(
+        { error: leaked, state: started.state, code: CODE },
+        started.stateHash,
+        meta,
+      ),
+    ).rejects.toMatchObject({ reason: 'failed' });
+
+    expect(audit.events.at(-1)?.metadata).toEqual({
+      provider: 'google',
+      reason: 'denied',
+      providerError: 'unknown',
+    });
+    expectNoOAuthSecrets(audit.events, leaked, CODE);
   });
 
   it('returns unavailable when Google is not configured and does not call Google', async () => {

@@ -38,6 +38,10 @@ const nextConfig: NextConfig = {
   typedRoutes: true,
   transpilePackages: ['@planit/ui'],
   headers() {
+    // Pages Next renders get these headers. `/api/*` is an external rewrite: Next returns
+    // that route before attaching `headers()`, and the proxy then copies the API response.
+    // The Google callback depends on this. Its `Referrer-Policy: no-referrer` must reach the
+    // browser so the authorization code is not sent as Referer (decision D-037).
     return Promise.resolve([{ source: '/:path*', headers: securityHeaders }]);
   },
   rewrites() {

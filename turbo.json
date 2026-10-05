@@ -29,6 +29,10 @@
     "test:e2e": {
       "dependsOn": ["^build", "db:generate"],
       "cache": false
+    },
+    "test:browser": {
+      "dependsOn": ["^build", "db:generate"],
+      "cache": false
     }
   }
 }

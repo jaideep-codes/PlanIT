@@ -33,6 +33,11 @@ const CREDENTIAL_KEYS = [
   'GOOGLE_CLIENT_SECRET',
   'code_verifier',
   'codeVerifier',
+  // Redis stores the PKCE secret under `verifier`, not `codeVerifier`.
+  'verifier',
+  // OAuth `state` is a bearer for the login attempt. `error_description` is caller-supplied text.
+  'state',
+  'error_description',
   'id_token',
   'access_token',
   'refresh_token',
@@ -78,7 +83,7 @@ export function scrubSecretText(value: string): string {
     .replace(/([a-z][a-z0-9+.-]*:\/\/)[^\s/@]*:[^\s@]*@/gi, '$1[REDACTED]@')
     .replace(/\$argon2[a-z0-9]+\$\S+/gi, '[REDACTED]')
     .replace(/\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g, '[REDACTED]')
-    .replace(/([?&#](?:code|state|code_verifier|id_token)=)[^&\s#]+/gi, '$1[REDACTED]')
+    .replace(/([?&#](?:code_verifier|id_token|verifier|code|state)=)[^&\s#]+/gi, '$1[REDACTED]')
     .replace(/(?<![\d:])\d{6}(?![\d:])/g, '******');
 }
 

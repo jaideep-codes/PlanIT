@@ -15,6 +15,8 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:e2e": "turbo run test:e2e --concurrency=1",
+    "test:browser": "turbo run test:browser --concurrency=1",
+    "scan:secrets": "node scripts/scan-secrets.mjs",
     "check": "turbo run lint typecheck test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

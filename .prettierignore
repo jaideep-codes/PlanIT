@@ -3,6 +3,9 @@ dist
 .next
 .turbo
 coverage
+apps/web/test-results
+apps/web/playwright-report
+apps/web/blob-report
 pnpm-lock.yaml
 apps/api/src/generated
 apps/api/prisma/migrations/**/*.sql

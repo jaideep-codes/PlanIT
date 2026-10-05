@@ -49,6 +49,10 @@ SDK errors are mapped to generic messages before logging.
 Each scenario must fail safely. The "Layer" column is where the automated test lives:
 U = unit, I = API integration (real DB), E = browser E2E (Playwright), S = static/CI check.
 
+The browser hook for rows marked E is `apps/web/e2e/support/network-guards.ts`. Phase 2 records
+same-origin traffic and asserts `passwordHash` is absent. The BYOK and provider-payload scenarios
+are still Phases 9–12. The bundle half of scenario 17 is the CI scan in decision D-038.
+
 | #   | Scenario                                             | Expected safe behaviour / control                                                                         | Layer |
 | --- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ----- |
 | 1   | AI requests another user's task                      | tools take no user ID; repository filters by session user → not found                                     | I     |

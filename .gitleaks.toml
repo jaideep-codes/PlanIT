@@ -1,0 +1,20 @@
+title = "PlanIT"
+
+[extend]
+useDefault = true
+
+# Clearly fake local-development placeholders. A real credential on the same line
+# would also be ignored, so keep these strings specific to the committed fixtures.
+[allowlist]
+description = "Local development placeholders and spec fixtures"
+regexTarget = "line"
+regexes = [
+  '''bG9jYWwtZGV2LWp3dC1zaWduaW5nLWtleS0zMmJ5dGU=''',
+  '''bG9jYWwtZGV2LW90cC1wZXBwZXItdmFsdWUtMzJieXQ=''',
+  '''bG9jYWwtZGV2LW90cC1qb2Ita2V5LTMyLWJ5dGVzISE=''',
+  '''planit_dev_password''',
+  '''planit_dev_redis''',
+  '''secret-password''',
+  '''secret-redis''',
+  '''postgres://planit:secret@db''',
+]

@@ -16,6 +16,11 @@ apps/api/src/generated/
 coverage/
 .eslintcache
 
+# Playwright
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/blob-report/
+
 # environment — never commit real values; *.example files are committed
 .env
 .env.*

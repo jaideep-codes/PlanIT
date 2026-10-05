@@ -16,7 +16,7 @@ Status legend: ✅ implemented · 🟡 partially implemented · ⏳ planned (pha
 | Browser → BYOK provider  | n/a (user's own account)           | model output is untrusted; proposals still go through API validation                              |
 | Stored user content      | none                               | task titles, notes, bios, goal text and skill names are untrusted data (XSS and prompt injection) |
 
-## 2. Authentication (🟡 Phase 2 Parts 1–3)
+## 2. Authentication (✅ Phase 2)
 
 - ✅ **Passwords:** Argon2id (`argon2` package; memory 19 MiB, time 2, parallelism 1). Minimum 10
   characters. Signup also requires a lowercase letter, an uppercase letter, a number, and a
@@ -47,8 +47,10 @@ Status legend: ✅ implemented · 🟡 partially implemented · ⏳ planned (pha
   PlanIT user is linked only when that user's email is already verified. A Google-only account
   has a null `passwordHash`. The client secret stays in the API environment. When those
   variables are empty, the button says Google sign-in is not configured and start returns 503.
-  The callback is rate-limited. Success and failure are audited without the code or tokens
-  (decision D-034). The `oauth_accounts` table comes from the credential migration (D-030).
+  The callback is rate-limited. Success and failure are audited with the allowlist in decision
+  D-035 (provider, outcome or reason, and on denial an optional provider error). The code, tokens,
+  verifier, nonce, and client secret are not stored (decision D-034). The `oauth_accounts` table
+  comes from the credential migration (D-030). There is no Google unlink.
 - ✅ **Route protection:** `proxy.ts` sends unauthenticated app-shell visits to the login page as
   a UX measure only. Every API route is guarded by the session guard; public routes opt out with
   `@Public()`. Health stays public.
@@ -87,8 +89,12 @@ userId } })`). A resource ID alone never grants access. Cross-user access return
   attributes; they cannot load resources), `connect-src 'self'`, `object-src 'none'`,
   `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`,
   `upgrade-insecure-requests` in production. Static headers in `next.config.ts`: `nosniff`,
-  `X-Frame-Options: DENY`, `Referrer-Policy`, COOP `same-origin`, a restrictive
-  `Permissions-Policy`, HSTS in production.
+  `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, COOP `same-origin`,
+  a restrictive `Permissions-Policy`, HSTS in production. `/api/*` is an external rewrite, so
+  those page headers are not attached to proxied responses. The browser receives the API's
+  headers. Google start and callback set `Referrer-Policy: no-referrer`, including when Google is
+  not configured, so an authorization code in the callback URL is not sent as Referer (decision
+  D-037).
 - ⏳ **Trusted Types** (`require-trusted-types-for 'script'`): introduced report-only before
   BYOK ships (Phase 11), then enforced once the framework and dependencies are verified
   compatible.
@@ -126,8 +132,10 @@ userId } })`). A resource ID alone never grants access. Cross-user access return
 - Only `NEXT_PUBLIC_*` variables reach the browser bundle. No secret may use that prefix. The
   PlanIT-managed AI key, OAuth client secret, JWT signing keys, OTP pepper and database
   credentials exist only in the API's environment.
-- Planned: a CI check that fails the build if a known secret pattern appears in client bundles
-  or committed files (for example gitleaks).
+- ✅ CI fails the build when a known secret pattern appears in tracked files (gitleaks and
+  `pnpm run scan:secrets`) or in the production web client bundle after `pnpm build`
+  (`--require-bundle`). The allowlist is the local-dev placeholders and a short list of obvious
+  spec fixtures (decision D-038).
 
 ## 8. Logging and error handling
 
@@ -135,7 +143,8 @@ userId } })`). A resource ID alone never grants access. Cross-user access return
   query string**, and status, never headers or bodies.
 - ✅ Redaction list (`apps/api/src/common/logging/pino-options.ts`) scrubs authorization,
   cookies, set-cookie, passwords, OTPs, tokens, API keys and secrets from any logged object.
-  New credential-bearing field names must be added there.
+  OAuth values are included under `codeVerifier`, `code_verifier`, `verifier` (the Redis field),
+  `state`, and `error_description`. New credential-bearing field names must be added there.
 - ✅ Redis and health-check failures log the error **message**, never the client or error
   object (which can contain connection URLs with credentials).
 - ✅ Production error responses never include stack traces, SQL, provider errors or secrets.
@@ -150,8 +159,9 @@ are `auth.signup`, `auth.login_succeeded`, `auth.login_failed`, `auth.logout`,
 `auth.session_revoked`, `auth.sessions_revoked`, `auth.google_link_succeeded`, and
 `auth.google_link_failed`. The client address is stored as `ipHash`
 (HMAC-SHA256 of the OTP pepper and an `ip:` prefix, decision D-029), never the raw IP, and never
-a secret. Password-reset and Google rows do not store the email, the code, tokens, or the
-authorization code. Still to record when their features ship: email changes, Google unlink,
+a secret. Password-reset and Google rows do not store the email, the code, tokens, the
+authorization code, the verifier, or the client secret. Google metadata is the allowlist in
+decision D-035. Still to record when their features ship: email changes, Google unlink,
 privacy and visibility changes, bulk task mutations, AI proposal approval/execution/failure,
 BYOK mode on/off (mode only, never the key), data export, and account deletion. Metadata is an
 allowlisted structure, never raw request bodies.

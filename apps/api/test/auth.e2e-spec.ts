@@ -581,6 +581,7 @@ describe('credential auth (e2e)', () => {
     expect(errorOf(start).code).toBe('SERVICE_UNAVAILABLE');
     expect(errorOf(start).message).toBe('Google sign-in is not configured.');
     expect(start.headers.location).toBeUndefined();
+    expect(start.headers['referrer-policy']).toBe('no-referrer');
     expect(setCookieLines(start)).toHaveLength(0);
 
     const code = `google-code-${randomUUID()}`;
@@ -590,6 +591,7 @@ describe('credential auth (e2e)', () => {
       .expect(503);
     expect(errorOf(callback).message).toBe('Google sign-in is not configured.');
     expect(callback.headers.location).toBeUndefined();
+    expect(callback.headers['referrer-policy']).toBe('no-referrer');
     expect(setCookieLines(callback)).toHaveLength(0);
     expectNoSecrets(callback.body, code);
   });
