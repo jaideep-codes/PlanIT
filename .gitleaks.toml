@@ -16,5 +16,4 @@ regexes = [
   '''planit_dev_redis''',
   '''secret-password''',
   '''secret-redis''',
-  '''postgres://planit:secret@db''',
 ]
