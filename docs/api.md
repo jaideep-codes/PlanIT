@@ -1,7 +1,7 @@
 # API
 
-> Implemented: health checks, Phase 2 Part 1 auth, Part 2 account routes, and Google sign-in.
-> Remaining route groups are listed as **planned**.
+> Implemented: health checks, Phase 2 auth (including Google sign-in), and Phase 3 Part 1 one-off
+> tasks. Remaining route groups are listed as **planned**. Recurrence is not implemented.
 
 ## Conventions
 
@@ -171,26 +171,82 @@ Google returned `error` an allowlisted `providerError`). Any other provider erro
 `unknown`. Rows do not store the authorization code, tokens, verifier, nonce, client secret, or
 `error_description` (decision D-035).
 
+### One-off tasks (Phase 3 Part 1)
+
+Every route requires a session cookie. The user id comes from that session. A missing or expired
+session is `401`. Another user's task id is `404` `NOT_FOUND`. Mutations need
+`Content-Type: application/json` and an allowed `Origin`. Bodies are strict objects, so `userId`
+and any other unknown key are `400`. A single task is the object itself. Timestamps are ISO 8601
+UTC. `dueDate` is `YYYY-MM-DD` or null. `userId` is not returned.
+
+| Method | Path                         | Success                                                                                       |
+| ------ | ---------------------------- | --------------------------------------------------------------------------------------------- |
+| POST   | `/api/v1/tasks`              | `201` and the created task. New tasks are inserted at the front of the caller's manual order. |
+| GET    | `/api/v1/tasks`              | `{ "items": [...], "nextCursor": string \| null }`                                            |
+| GET    | `/api/v1/tasks/:id`          | the task                                                                                      |
+| PATCH  | `/api/v1/tasks/:id`          | the updated task                                                                              |
+| DELETE | `/api/v1/tasks/:id`          | `200` and the deleted task. The row is hard-deleted.                                          |
+| POST   | `/api/v1/tasks/:id/complete` | `200` and the task. Sets `COMPLETED` and `completedAt` to the server clock.                   |
+| POST   | `/api/v1/tasks/:id/reopen`   | `200` and the task. Valid only from `COMPLETED`. Sets `TODO` and clears `completedAt`.        |
+| PATCH  | `/api/v1/tasks/:id/position` | `200` and the task. The server chooses the new fractional `sortOrder`.                        |
+
+`POST` complete and reopen send `{}`. Completing a task that is already `COMPLETED` returns `200`
+with the same task and does not write another audit row. Completing a `CANCELLED` task is allowed.
+Reopening any other status is `409` `CONFLICT`. `PATCH` may set `status` to `TODO`, `IN_PROGRESS`,
+or `CANCELLED`. `status: COMPLETED`, `completedAt`, `sortOrder`, `id`, and `userId` are rejected.
+Moving a `CANCELLED` task back to `TODO` or `IN_PROGRESS` is a `PATCH`.
+
+Create defaults are `priority` `MEDIUM`, `status` `TODO`, and null notes, due date, schedule, and
+estimate. `scheduledStart` and `scheduledEnd` are both omitted or null, or both instants with the
+end after the start. Sending only one is `400`. `estimatedMinutes` is an integer from 1 to 10080,
+or null. `title` is trimmed to 1–200 characters. `notes` is trimmed; a blank value becomes null;
+the maximum is 10000 characters.
+
+List query keys are `limit` (default 20, maximum 100), `cursor`, `status`, `priority`, `due`,
+`scheduledFrom`, `scheduledTo`, and `sort`. Unknown keys are rejected. `status` and `priority`
+accept one value or a repeated key; values within a field are OR, and different fields are AND.
+`due` matches `dueDate` exactly. `scheduledFrom` and `scheduledTo` are inclusive instants compared
+with `scheduledStart`. `sort` is `manual`, `priority`, `dueDate`, `scheduledStart`, or `createdAt`.
+A leading `-` reverses it. Forward `priority` is HIGH, then MEDIUM, then LOW. Forward dates are
+earliest first, with nulls last. Forward `manual` and `createdAt` are ascending. Every order breaks
+ties by `id`. When `sort` is omitted, the list uses `user_preferences.default_task_sort`. That
+preference is not editable in this part.
+
+`cursor` is an opaque base64url value for one sort and filter combination. A cursor that cannot be
+read, or that was issued for a different sort or filter, is `400`. `PATCH` position sends optional
+`beforeId` and `afterId`; at least one is required. Both, when present, must already be adjacent in
+this user's manual order with `before` sorting before `after`, or the response is `400`. An id that
+is missing or owned by someone else is `404`. The client never sends a raw `sortOrder`. When the
+gap between two neighbors cannot be named in 64 characters, the response is `409` `CONFLICT`.
+
+Audit rows are written for `task.completed` (only when the status changed; metadata
+`{ "previousStatus": "<status>" }`), `task.reopened` (metadata `{}`), and `task.deleted`
+(metadata `{}`). Creates and field edits are not audited. Metadata does not include the title,
+notes, or the request body.
+
+Schemas: `createTaskRequestSchema`, `updateTaskRequestSchema`, `repositionTaskRequestSchema`,
+`listTasksQuerySchema`, `taskIdSchema`, `taskSchema`, `taskListSchema` in `@planit/shared`.
+Response types: `Task` and `TaskList` in `@planit/types`.
+
 ## Planned route groups
 
 All are under `/api/v1`, authenticated unless noted, and owner-scoped.
 
-| Group               | Phase | Highlights                                                                                                                                      |
-| ------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/auth`             | 2     | Implemented, including the Phase 2 security pass. Further providers, unlink, and email change are out of scope.                                 |
-| `/users/me`         | 2     | Implemented above. Further profile fields (username, bio, privacy) are Phase 8.                                                                 |
-| `/settings`         | 2+    | `weekStartsOn` and notification preferences. Theme is `PATCH /users/me/theme`.                                                                  |
-| `/tasks`            | 3     | CRUD, `POST :id/complete`, `POST :id/reopen`, `PATCH :id/position` (fractional index), filters: `status`, `priority`, `due`, `scheduledFrom/To` |
-| `/recurring-tasks`  | 3     | CRUD series, `POST :id/occurrences/:date/skip`, `PATCH …/occurrences/:date`, `POST :id/stop`                                                    |
-| `/focus`            | 4     | `POST start`, `POST :id/pause`, `POST :id/resume`, `POST :id/stop`, `POST :id/cancel`, `GET active`, `GET sessions` (cursor)                    |
-| `/calendar`         | 5     | `GET ?from=&to=&view=day                                                                                                                        | week                         | month`: scheduled tasks, occurrences, focus history |
-| `/statistics`       | 6     | `GET daily                                                                                                                                      | weekly                       | monthly                                             | summary              | heatmap | records                      | streak` |
-| `/goals`, `/skills` | 7     | CRUD, milestones, task links, skill assignment, skill time                                                                                      |
-| `/profiles`         | 8     | `GET :username` (assembled per viewer: anonymous, user, friend, owner, blocked), `GET me/preview?as=public                                      | friend`, visibility settings |
-| `/friends`          | 8     | search (privacy- and block-aware), requests, accept/decline, remove, block/unblock                                                              |
-| `/leaderboards`     | 8     | `GET ?scope=friends                                                                                                                             | global&period=daily          | weekly                                              | monthly&metric=focus | streak  | tasks`→`{ top, me, nearby }` |
-| `/notifications`    | 5+    | list (cursor), mark read                                                                                                                        |
-| `/ai`               | 9     | `POST chat` (streamed), `GET context/preview?scope=` (exactly what would be shared)                                                             |
-| `/ai/proposals`     | 9     | `POST` (validate+persist a proposal), `GET :id`, `POST :id/approve` (with `payloadHash` + `Idempotency-Key`), `POST :id/reject`                 |
-| `/ai/usage`         | 12    | managed-AI usage and remaining allowance; BYOK records are informational                                                                        |
-| `/me/export`        | 13    | context export (Markdown, JSON, plain text), with no credentials                                                                                |
+| Group               | Phase | Highlights                                                                                                                           |
+| ------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `/auth`             | 2     | Implemented, including the Phase 2 security pass. Further providers, unlink, and email change are out of scope.                      |
+| `/users/me`         | 2     | Implemented above. Further profile fields (username, bio, privacy) are Phase 8.                                                      |
+| `/settings`         | 2+    | `weekStartsOn` and notification preferences. Theme is `PATCH /users/me/theme`.                                                       |
+| `/recurring-tasks`  | 3     | CRUD series, `POST :id/occurrences/:date/skip`, `PATCH …/occurrences/:date`, `POST :id/stop`. One-off `/tasks` is implemented above. |
+| `/focus`            | 4     | `POST start`, `POST :id/pause`, `POST :id/resume`, `POST :id/stop`, `POST :id/cancel`, `GET active`, `GET sessions` (cursor)         |
+| `/calendar`         | 5     | `GET ?from=&to=&view=day                                                                                                             | week                         | month`: scheduled tasks, occurrences, focus history |
+| `/statistics`       | 6     | `GET daily                                                                                                                           | weekly                       | monthly                                             | summary              | heatmap | records                      | streak` |
+| `/goals`, `/skills` | 7     | CRUD, milestones, task links, skill assignment, skill time                                                                           |
+| `/profiles`         | 8     | `GET :username` (assembled per viewer: anonymous, user, friend, owner, blocked), `GET me/preview?as=public                           | friend`, visibility settings |
+| `/friends`          | 8     | search (privacy- and block-aware), requests, accept/decline, remove, block/unblock                                                   |
+| `/leaderboards`     | 8     | `GET ?scope=friends                                                                                                                  | global&period=daily          | weekly                                              | monthly&metric=focus | streak  | tasks`→`{ top, me, nearby }` |
+| `/notifications`    | 5+    | list (cursor), mark read                                                                                                             |
+| `/ai`               | 9     | `POST chat` (streamed), `GET context/preview?scope=` (exactly what would be shared)                                                  |
+| `/ai/proposals`     | 9     | `POST` (validate+persist a proposal), `GET :id`, `POST :id/approve` (with `payloadHash` + `Idempotency-Key`), `POST :id/reject`      |
+| `/ai/usage`         | 12    | managed-AI usage and remaining allowance; BYOK records are informational                                                             |
+| `/me/export`        | 13    | context export (Markdown, JSON, plain text), with no credentials                                                                     |

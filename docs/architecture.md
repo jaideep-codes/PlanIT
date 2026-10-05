@@ -112,21 +112,21 @@ Rules (enforced by review; the first two also by ESLint in `apps/api/eslint.conf
 
 ### Module map
 
-| Module                      | Phase | Responsibility                                                                                |
-| --------------------------- | ----- | --------------------------------------------------------------------------------------------- |
-| Health                      | 1 ✅  | liveness/readiness                                                                            |
-| Auth                        | 2 ✅  | Signup, OTP, login, logout, password reset, rotating sessions, session revoke, Google sign-in |
-| Users / Profile / Privacy   | 2, 8  | current user (display name, timezone, theme). Public profiles remain                          |
-| Audit                       | 2 🟡  | append-only log; signup, login, logout, refresh reuse, password reset, session revoke, Google |
-| Entitlements                | 2 🟡  | reads `UserPlan`; `can(userId, 'pro')` is false on FREE. No Pro features                      |
-| Tasks / RecurringTasks      | 3     | task engine, recurrence rules, occurrence materialization                                     |
-| Focus                       | 4     | server-authoritative focus sessions                                                           |
-| Calendar                    | 5     | read model over scheduled tasks, occurrences and focus history                                |
-| Statistics                  | 6     | aggregates, records, streaks, heatmap                                                         |
-| Goals / Skills              | 7     | goals, milestones, task links, skills, skill time                                             |
-| Friends / Leaderboards      | 8     | friend graph, blocking, privacy-aware rankings                                                |
-| Notifications               | 5+    | in-app notifications and preferences                                                          |
-| AI / AIUsage / Entitlements | 9–12  | assistant, proposals, usage limits, plan entitlements                                         |
+| Module                      | Phase | Responsibility                                                                                           |
+| --------------------------- | ----- | -------------------------------------------------------------------------------------------------------- |
+| Health                      | 1 ✅  | liveness/readiness                                                                                       |
+| Auth                        | 2 ✅  | Signup, OTP, login, logout, password reset, rotating sessions, session revoke, Google sign-in            |
+| Users / Profile / Privacy   | 2, 8  | current user (display name, timezone, theme). Public profiles remain                                     |
+| Audit                       | 2 🟡  | append-only log; signup, login, logout, refresh reuse, password reset, session revoke, Google            |
+| Entitlements                | 2 🟡  | reads `UserPlan`; `can(userId, 'pro')` is false on FREE. No Pro features                                 |
+| Tasks                       | 3 🟡  | one-off tasks: owner-scoped CRUD, completion, filters, sort, and manual order. Recurrence is not started |
+| Focus                       | 4     | server-authoritative focus sessions                                                                      |
+| Calendar                    | 5     | read model over scheduled tasks, occurrences and focus history                                           |
+| Statistics                  | 6     | aggregates, records, streaks, heatmap                                                                    |
+| Goals / Skills              | 7     | goals, milestones, task links, skills, skill time                                                        |
+| Friends / Leaderboards      | 8     | friend graph, blocking, privacy-aware rankings                                                           |
+| Notifications               | 5+    | in-app notifications and preferences                                                                     |
+| AI / AIUsage / Entitlements | 9–12  | assistant, proposals, usage limits, plan entitlements                                                    |
 
 ### HTTP stack (implemented)
 

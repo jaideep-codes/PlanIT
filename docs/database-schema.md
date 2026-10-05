@@ -1,8 +1,9 @@
 # Database schema
 
-> Implemented today: `User`, `UserPreference` (`20261001194243_init_identity`) and the credential
-> tables in `20261001222857_auth_credentials`. Everything else below is the **planned** schema.
-> Field lists are the contract; exact column types are finalised in each phase's migration.
+> Implemented today: `User`, `UserPreference` (`20261001194243_init_identity`), the credential
+> tables in `20261001222857_auth_credentials`, and one-off `Task` (`20261005145330_tasks`).
+> Everything else below is the **planned** schema. Field lists are the contract; exact column types
+> are finalised in each phase's migration.
 
 ## Conventions
 
@@ -71,16 +72,39 @@ metadata` (JSONB object), `request_id?, ip_hash?, created_at`. CHECKs: action ma
   `^[a-z0-9_.]+$`, metadata is an object, `ip_hash` is hex or null. Index `(user_id, created_at)`.
 - **`user_plans`**: `user_id` PK, `plan (FREE | PRO)`, `valid_until?`. Signup inserts `FREE`.
 
+## Implemented (Phase 3 Part 1)
+
+Migration `20261005145330_tasks`. One-off tasks only. There is no `recurring_task_id` column, and
+there are no timer or focus columns. `IN_PROGRESS` is a status the owner sets; it is not timer state.
+
+### `tasks`
+
+| Column            | Type           | Notes                                                                  |
+| ----------------- | -------------- | ---------------------------------------------------------------------- |
+| id                | uuid PK        | UUIDv7                                                                 |
+| user_id           | uuid           | non-null FK to `users`, `ON DELETE CASCADE`                            |
+| title             | varchar(200)   | trimmed by the application; CHECK length 1–200                         |
+| notes             | varchar(10000) | null, or CHECK length 1–10000                                          |
+| priority          | TaskPriority   | `LOW`, `MEDIUM`, `HIGH`; default `MEDIUM`                              |
+| status            | TaskStatus     | `TODO`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`; default `TODO`        |
+| due_date          | date           | nullable calendar date, not an instant                                 |
+| scheduled_start   | timestamptz(3) | nullable; both schedule columns are null, or the end is strictly later |
+| scheduled_end     | timestamptz(3) | nullable                                                               |
+| estimated_minutes | integer        | null, or 1–10080                                                       |
+| completed_at      | timestamptz(3) | set if and only if `status = COMPLETED`                                |
+| sort_order        | varchar(64)    | fractional index, length 1–64. The client never sends it               |
+| created_at        | timestamptz(3) |                                                                        |
+| updated_at        | timestamptz(3) |                                                                        |
+
+Indexes, each commented in the migration with the query it serves: `(user_id, status)`,
+`(user_id, due_date)`, `(user_id, scheduled_start)`, `(user_id, priority)`, `(user_id, sort_order)`.
+
 ## Planned
 
-### Phase 3: tasks and recurrence
+### Phase 3: recurrence
 
-- **Task**: `id, userId, title, notes?, priority (LOW|MEDIUM|HIGH), status (TODO | IN_PROGRESS |
-COMPLETED | CANCELLED), dueDate?, scheduledStart?, scheduledEnd?, estimatedMinutes?, completedAt?,
-sortOrder (fractional-index string), recurringTaskId?, createdAt, updatedAt`.
-  CHECKs: `scheduledEnd > scheduledStart`, `estimatedMinutes > 0`, `completedAt` set iff
-  `status = COMPLETED`. Indexes: `(userId, status)`, `(userId, dueDate)`, `(userId, scheduledStart)`,
-  `(userId, priority)`, `(userId, sortOrder)`. Timer state is **not** stored on tasks.
+`Task` is implemented above. These two models are not.
+
 - **RecurringTask**: `id, userId, title, notes?, priority, recurrenceRule (RFC 5545 RRULE),
 startDate, endDate?, timezone, enabled, estimatedMinutes?, defaultStartMinute?, createdAt,
 updatedAt`. Indexes: `(userId, enabled)`, `(userId, startDate)`.

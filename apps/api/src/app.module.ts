@@ -16,6 +16,7 @@ import { HealthModule } from './modules/health/health.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { EntitlementModule } from './modules/entitlements/entitlement.module.js';
+import { TasksModule } from './modules/tasks/tasks.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
 @Module({
@@ -44,6 +45,7 @@ import { UsersModule } from './modules/users/users.module.js';
     EntitlementModule,
     AuthModule,
     UsersModule,
+    TasksModule,
     HealthModule,
   ],
   providers: [

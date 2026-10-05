@@ -1,0 +1,47 @@
+// One-off tasks. RecurringTask, TaskOccurrence, and recurringTaskId are Part 3 of
+// recurrence and are intentionally absent here.
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model Task {
+  id               String       @id @default(uuid(7)) @db.Uuid
+  userId           String       @map("user_id") @db.Uuid
+  /// Trimmed by the application. Length 1–200 is a CHECK constraint.
+  title            String       @db.VarChar(200)
+  /// Null when the owner cleared it. Empty strings are stored as null.
+  notes            String?      @db.VarChar(10000)
+  priority         TaskPriority @default(MEDIUM)
+  status           TaskStatus   @default(TODO)
+  /// Calendar date, not an instant. There is no time zone on the value.
+  dueDate          DateTime?    @map("due_date") @db.Date
+  scheduledStart   DateTime?    @map("scheduled_start") @db.Timestamptz(3)
+  scheduledEnd     DateTime?    @map("scheduled_end") @db.Timestamptz(3)
+  estimatedMinutes Int?         @map("estimated_minutes")
+  /// Set if and only if status is COMPLETED. The complete route writes the server clock.
+  completedAt      DateTime?    @map("completed_at") @db.Timestamptz(3)
+  /// Lexicographic fractional index. The client never sends this value.
+  sortOrder        String       @map("sort_order") @db.VarChar(64)
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // List filters and the five sort orders. Each index is commented in the migration.
+  @@index([userId, status])
+  @@index([userId, dueDate])
+  @@index([userId, scheduledStart])
+  @@index([userId, priority])
+  @@index([userId, sortOrder])
+  @@map("tasks")
+}

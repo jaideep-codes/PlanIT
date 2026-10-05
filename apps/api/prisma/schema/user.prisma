@@ -50,6 +50,7 @@ model User {
   emailOtps     EmailOtp[]
   oauthAccounts OAuthAccount[]
   auditLogs     AuditLog[]
+  tasks         Task[]
 
   @@map("users")
 }

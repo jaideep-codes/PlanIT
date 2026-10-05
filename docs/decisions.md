@@ -358,3 +358,31 @@ supersedes it. Format: context → decision → consequences.
   stays non-blocking. The workflow permission stays `contents: read`.
 - **Consequences:** a real credential in a spec file is still a failure unless it is one of those
   exact fakes. Widening the allowlist needs a new decision.
+
+### D-039 One-off tasks use a fractional index and audit only state changes
+
+- **Context:** Phase 3 Part 1 adds owner-scoped tasks without recurrence. The manual order has to
+  survive inserts between neighbors, completion has to be safe to retry, and the audit log should
+  not become a copy of task text.
+- **Decision:** `title` is trimmed to 1–200 characters. `notes` is trimmed, a blank value is stored
+  as null, and otherwise it is 1–10000 characters. `estimatedMinutes` is null or an integer from 1
+  to 10080. `scheduledStart` and `scheduledEnd` are both null or the end is strictly later. `completedAt`
+  is set if and only if `status` is `COMPLETED`. `sortOrder` is 1–64 characters. The same bounds are
+  CHECK constraints. The fractional-index alphabet is
+  `0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz`. Integer-length heads are `A`–`Z`
+  (before the origin) and `a`–`z` (at or after it). The first key, for an empty list, is `a0`.
+  `between(lower, upper)` names a key strictly between the neighbors; `null` means that side is
+  open. New tasks use `between(null, smallest)` so they sort at the front of the caller's manual
+  order. The client never sends `sortOrder`. `PATCH /tasks/:id/position` names neighbors by id. When
+  the only key that would fit is longer than 64 characters, or the neighbors have no string gap, the
+  position update returns `409 CONFLICT` and does not rewrite other rows. `POST /tasks/:id/complete`
+  is idempotent: a task that is already `COMPLETED` is returned unchanged and does not get another
+  `task.completed` audit row. A real completion audits `task.completed` with `{ previousStatus }`.
+  `task.reopened` and `task.deleted` audit metadata `{}`. Ordinary creates and field edits are not
+  audited. Titles, notes, and request bodies are not written to metadata or logs. `DELETE` returns
+  `200` with the deleted task. Forward `priority` sort is HIGH, then MEDIUM, then LOW. Forward due
+  and scheduled sorts are earliest first, with nulls last.
+- **Consequences:** `recurringTaskId` is not a column yet. `default_task_sort` is read when `sort`
+  is omitted and is not editable in this part. `IN_PROGRESS` is only a status set through `PATCH`.
+  A later recurrence part adds `RecurringTask`, `TaskOccurrence`, and the link column. Exhausted
+  manual-order gaps need a future rebalance if a user ever hits 409.

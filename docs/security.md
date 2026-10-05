@@ -156,8 +156,11 @@ userId } })`). A resource ID alone never grants access. Cross-user access return
 Append-only `AuditLog` rows. A database trigger rejects `UPDATE` and `DELETE`. Recorded actions
 are `auth.signup`, `auth.login_succeeded`, `auth.login_failed`, `auth.logout`,
 `auth.refresh_reuse`, `auth.password_reset_requested`, `auth.password_reset`,
-`auth.session_revoked`, `auth.sessions_revoked`, `auth.google_link_succeeded`, and
-`auth.google_link_failed`. The client address is stored as `ipHash`
+`auth.session_revoked`, `auth.sessions_revoked`, `auth.google_link_succeeded`,
+`auth.google_link_failed`, `task.completed`, `task.reopened`, and `task.deleted`.
+`task.completed` is written only when the status changes, with metadata `{ previousStatus }`.
+The reopen and delete rows use metadata `{}`. Task creates and field edits are not audited, and
+task metadata never includes the title, notes, or request body (decision D-039). The client address is stored as `ipHash`
 (HMAC-SHA256 of the OTP pepper and an `ip:` prefix, decision D-029), never the raw IP, and never
 a secret. Password-reset and Google rows do not store the email, the code, tokens, the
 authorization code, the verifier, or the client secret. Google metadata is the allowlist in
