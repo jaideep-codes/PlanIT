@@ -15,7 +15,12 @@ import type { RequestMeta } from '../auth/request-meta.js';
 import { between, FractionalIndexExhaustedError } from './fractional-index.js';
 import { BadTaskCursorError, decodeTaskCursor, encodeTaskCursor } from './task-cursor.js';
 import { compareManual, parseSort, preferenceToSort, type TaskListFilters } from './task-query.js';
-import { TasksRepository, type ManualAnchor, type TaskFieldPatch } from './tasks.repository.js';
+import {
+  TasksRepository,
+  type ManualAnchor,
+  type TaskFieldPatch,
+  type TaskWrite,
+} from './tasks.repository.js';
 
 const TASK_AUDIT = {
   COMPLETED: 'task.completed',
@@ -131,6 +136,9 @@ export class TasksService {
     return this.tasks.transaction(async (tx) => {
       const existing = await this.tasks.lockTask(userId, taskId, tx);
       if (!existing) throw notFound();
+      if (existing.recurringTaskId) {
+        await this.tasks.skipLinkedOccurrence(userId, taskId, tx);
+      }
       const removed = await this.tasks.delete(userId, taskId, tx);
       if (!removed) throw notFound();
       await this.record(userId, TASK_AUDIT.DELETED, taskId, {}, meta, tx);
@@ -150,6 +158,9 @@ export class TasksService {
       const previousStatus: TaskStatus = existing.status;
       const updated = await this.tasks.complete(userId, taskId, new Date(), tx);
       if (!updated) return existing;
+      if (existing.recurringTaskId) {
+        await this.tasks.setLinkedOccurrenceStatus(userId, taskId, 'COMPLETED', tx);
+      }
       await this.record(userId, TASK_AUDIT.COMPLETED, taskId, { previousStatus }, meta, tx);
       return updated;
     });
@@ -165,6 +176,9 @@ export class TasksService {
       }
       const updated = await this.tasks.reopen(userId, taskId, tx);
       if (!updated) throw conflict('Only a completed task can be reopened.');
+      if (existing.recurringTaskId) {
+        await this.tasks.setLinkedOccurrenceStatus(userId, taskId, 'MATERIALIZED', tx);
+      }
       await this.record(userId, TASK_AUDIT.REOPENED, taskId, {}, meta, tx);
       return updated;
     });
@@ -253,6 +267,52 @@ export class TasksService {
       }
       throw error;
     }
+  }
+
+  /** Recurrence materialization writes tasks through this service, not the tasks repository. */
+  lockOwner(userId: string, tx: DbClient): Promise<void> {
+    return this.tasks.lockUser(userId, tx);
+  }
+
+  lowestSortOrder(userId: string, tx: DbClient): Promise<string | null> {
+    return this.tasks.lowestSortOrder(userId, tx);
+  }
+
+  createGenerated(
+    userId: string,
+    write: TaskWrite & { recurringTaskId: string },
+    tx: DbClient,
+  ): Promise<Task> {
+    return this.tasks.create(userId, write, tx);
+  }
+
+  lockTask(userId: string, taskId: string, tx: DbClient): Promise<Task | null> {
+    return this.tasks.lockTask(userId, taskId, tx);
+  }
+
+  updateWithin(
+    userId: string,
+    taskId: string,
+    input: UpdateTaskRequest,
+    tx: DbClient,
+  ): Promise<Task | null> {
+    return this.tasks.update(userId, taskId, toPatch(input), tx);
+  }
+
+  deleteWithin(userId: string, taskId: string, tx: DbClient): Promise<boolean> {
+    return this.tasks.delete(userId, taskId, tx);
+  }
+
+  clearRecurringLink(userId: string, taskId: string, tx: DbClient): Promise<Task | null> {
+    return this.tasks.clearRecurringTaskId(userId, taskId, tx);
+  }
+
+  deleteOpenForSeries(userId: string, seriesId: string, tx: DbClient): Promise<void> {
+    return this.tasks.deleteOpenForSeries(userId, seriesId, tx);
+  }
+
+  detachCompletedForSeries(userId: string, seriesId: string, tx: DbClient): Promise<void> {
+    return this.tasks.detachCompletedForSeries(userId, seriesId, tx);
   }
 
   private require(task: Task | null): Task {

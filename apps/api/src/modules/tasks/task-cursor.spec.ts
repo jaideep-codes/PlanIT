@@ -15,6 +15,7 @@ const TASK: Task = {
   estimatedMinutes: null,
   completedAt: null,
   sortOrder: 'a0',
+  recurringTaskId: null,
   createdAt: '2026-10-05T00:00:00.000Z',
   updatedAt: '2026-10-05T00:00:00.000Z',
 };

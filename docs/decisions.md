@@ -404,3 +404,41 @@ supersedes it. Format: context → decision → consequences.
 - **Consequences:** Changing the account timezone changes how existing instants are displayed. It
   does not rewrite stored instants. Sort direction resets when Home is reloaded. An exhausted
   fractional-index gap is still a 409 and is not rebalanced here.
+
+### D-041 Recurrence uses date-fns-tz, and an existing occurrence row is final
+
+- **Context:** Phase 3 Part 3 adds series and occurrence rows. Node 24.19.0 in this repo does not
+  expose the global `Temporal` API without a flag (`'Temporal' in globalThis` is false). Clients
+  must not send a raw RRULE. A date that was skipped, detached, or already generated must not come
+  back, including when two workers run.
+- **Decision:** Timezone and calendar-date math use `date-fns-tz` 3.2.0 (peer `date-fns` 4.4.0).
+  Expansion uses `rrule` 2.8.1 with no `tzid`, so there is one timezone implementation. The server
+  writes one canonical RRULE (`FREQ`, `INTERVAL`, optional `BYDAY` in Monday–Sunday order, optional
+  `BYMONTHDAY`, `WKST` last) and rejects `SECONDLY`, `MINUTELY`, `HOURLY`, `YEARLY`, `COUNT`, and
+  any string it did not write. The stored rule is at most 500 characters. `WKST` is copied from
+  the owner's `weekStartsOn` at create time. Changing that preference later does not rewrite
+  existing rules. Editing the series refreshes `WKST` from the current preference.
+  `endDate` is inclusive in the series timezone. `enabled` false creates nothing more.
+  When `defaultStartMinute` and `estimatedMinutes` are both set, `scheduledStart` is that minute
+  on the occurrence date in the series timezone and `scheduledEnd` is that many minutes later. A
+  spring-forward gap still creates the task with `dueDate` set and both schedule columns null. A
+  fall-back overlap uses the earlier instant and does not create two tasks. A missing start minute
+  leaves both schedule columns null.
+  The generator creates a date only when the rule matches, the date is inside `startDate` and
+  `endDate`, and no occurrence row exists for that series and date, whatever the row's status.
+  The unique `(recurring_task_id, occurrence_date)` constraint keeps the row that committed first.
+  Series edits do not rewrite tasks that already exist. Dates with no row yet use the new rule.
+  Stop sets `enabled` false and `endDate` to the day before today in the series timezone, or to
+  `startDate` when that day is earlier, and does not delete tasks. Skip writes `SKIPPED`, deletes
+  a linked task that is not `COMPLETED`, returns `409` when the task is completed or already
+  detached, and a second skip returns the same row. Editing one date materializes it if needed,
+  applies the patch, sets that task's `recurringTaskId` to null, and leaves the occurrence row.
+  Deleting a series deletes linked tasks that are not `COMPLETED`, sets `recurringTaskId` null on
+  linked `COMPLETED` tasks, then deletes the series. Occurrence rows cascade.
+  Audit actions are `recurring_task.stopped`, `recurring_task.deleted`,
+  `recurring_task.occurrence_skipped`, and `recurring_task.occurrence_detached`. Metadata is ids
+  and statuses only. Materialization and ordinary series field edits are not audited.
+- **Consequences:** This supersedes the D-039 note that `recurringTaskId` is not a column yet.
+  Home has no series controls. Materialized open tasks appear in the task list. An exhausted
+  fractional-index gap is still a 409. There is no calendar view. Part 4 is the series UI and
+  has not started.

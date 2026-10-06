@@ -34,7 +34,7 @@ GOAL → PLAN → SCHEDULE → EXECUTE → FOCUS → MEASURE → IMPROVE → RE-
                                     (source of truth) (cache, rate   (PlanIT-managed,
                                                        limits, queues) server-side key)
                                                           │
-                                                   BullMQ workers (planned)
+                                                   BullMQ workers (email, maintenance)
 
    BYOK mode (Phase 11): Browser ──► AI provider directly with the user's in-memory key.
    The key never reaches the Next.js server or the API.
@@ -110,23 +110,28 @@ Rules (enforced by review; the first two also by ESLint in `apps/api/eslint.conf
    (`tasks.update(userId, taskId, changes)`); repositories filter by it in the `WHERE` clause.
 5. Request/response schemas are Zod schemas in `@planit/shared` so web and API share them.
 
+`RecurringTasksModule` imports `TasksModule`. `TasksModule` does not import
+`RecurringTasksModule`. The maintenance worker dispatches by job name (`delete-expired-otps` and
+`recurrence-materialize`).
+
 ### Module map
 
-| Module                      | Phase | Responsibility                                                                                           |
-| --------------------------- | ----- | -------------------------------------------------------------------------------------------------------- |
-| Health                      | 1 ✅  | liveness/readiness                                                                                       |
-| Auth                        | 2 ✅  | Signup, OTP, login, logout, password reset, rotating sessions, session revoke, Google sign-in            |
-| Users / Profile / Privacy   | 2, 8  | current user (display name, timezone, theme). Public profiles remain                                     |
-| Audit                       | 2 🟡  | append-only log; signup, login, logout, refresh reuse, password reset, session revoke, Google            |
-| Entitlements                | 2 🟡  | reads `UserPlan`; `can(userId, 'pro')` is false on FREE. No Pro features                                 |
-| Tasks                       | 3 🟡  | one-off tasks: owner-scoped CRUD, completion, filters, sort, and manual order. Recurrence is not started |
-| Focus                       | 4     | server-authoritative focus sessions                                                                      |
-| Calendar                    | 5     | read model over scheduled tasks, occurrences and focus history                                           |
-| Statistics                  | 6     | aggregates, records, streaks, heatmap                                                                    |
-| Goals / Skills              | 7     | goals, milestones, task links, skills, skill time                                                        |
-| Friends / Leaderboards      | 8     | friend graph, blocking, privacy-aware rankings                                                           |
-| Notifications               | 5+    | in-app notifications and preferences                                                                     |
-| AI / AIUsage / Entitlements | 9–12  | assistant, proposals, usage limits, plan entitlements                                                    |
+| Module                      | Phase | Responsibility                                                                                                                               |
+| --------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Health                      | 1 ✅  | liveness/readiness                                                                                                                           |
+| Auth                        | 2 ✅  | Signup, OTP, login, logout, password reset, rotating sessions, session revoke, Google sign-in                                                |
+| Users / Profile / Privacy   | 2, 8  | current user (display name, timezone, theme). Public profiles remain                                                                         |
+| Audit                       | 2 🟡  | append-only log; signup, login, logout, refresh reuse, password reset, session revoke, Google                                                |
+| Entitlements                | 2 🟡  | reads `UserPlan`; `can(userId, 'pro')` is false on FREE. No Pro features                                                                     |
+| Tasks                       | 3 🟡  | one-off tasks: owner-scoped CRUD, completion, filters, sort, and manual order. Complete, reopen, and delete keep a linked occurrence in step |
+| Recurring tasks             | 3 🟡  | recurrence engine: series CRUD, materialization, skip, detach, and stop. The Home series UI has not started                                  |
+| Focus                       | 4     | server-authoritative focus sessions                                                                                                          |
+| Calendar                    | 5     | read model over scheduled tasks, occurrences and focus history                                                                               |
+| Statistics                  | 6     | aggregates, records, streaks, heatmap                                                                                                        |
+| Goals / Skills              | 7     | goals, milestones, task links, skills, skill time                                                                                            |
+| Friends / Leaderboards      | 8     | friend graph, blocking, privacy-aware rankings                                                                                               |
+| Notifications               | 5+    | in-app notifications and preferences                                                                                                         |
+| AI / AIUsage / Entitlements | 9–12  | assistant, proposals, usage limits, plan entitlements                                                                                        |
 
 ### HTTP stack (implemented)
 

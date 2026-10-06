@@ -1,5 +1,6 @@
-// One-off tasks. RecurringTask, TaskOccurrence, and recurringTaskId are Part 3 of
-// recurrence and are intentionally absent here.
+// One-off tasks and tasks generated from a series. The series template lives in
+// recurring-task.prisma. recurringTaskId is null for a one-off task and after an
+// occurrence is detached.
 
 enum TaskPriority {
   LOW
@@ -32,10 +33,14 @@ model Task {
   completedAt      DateTime?    @map("completed_at") @db.Timestamptz(3)
   /// Lexicographic fractional index. The client never sends this value.
   sortOrder        String       @map("sort_order") @db.VarChar(64)
+  /// Null for a one-off task and after an occurrence edit detaches the task.
+  recurringTaskId  String?      @map("recurring_task_id") @db.Uuid
   createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recurringTask RecurringTask?  @relation(fields: [recurringTaskId], references: [id], onDelete: SetNull)
+  occurrence    TaskOccurrence?
 
   // List filters and the five sort orders. Each index is commented in the migration.
   @@index([userId, status])
@@ -43,5 +48,7 @@ model Task {
   @@index([userId, scheduledStart])
   @@index([userId, priority])
   @@index([userId, sortOrder])
+  // Delete or detach every task generated for one series.
+  @@index([userId, recurringTaskId])
   @@map("tasks")
 }

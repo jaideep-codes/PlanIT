@@ -38,6 +38,7 @@ const TASK_KEYS = [
   'estimatedMinutes',
   'completedAt',
   'sortOrder',
+  'recurringTaskId',
   'createdAt',
   'updatedAt',
 ] as const;

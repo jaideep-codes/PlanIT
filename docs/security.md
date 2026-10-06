@@ -157,10 +157,14 @@ Append-only `AuditLog` rows. A database trigger rejects `UPDATE` and `DELETE`. R
 are `auth.signup`, `auth.login_succeeded`, `auth.login_failed`, `auth.logout`,
 `auth.refresh_reuse`, `auth.password_reset_requested`, `auth.password_reset`,
 `auth.session_revoked`, `auth.sessions_revoked`, `auth.google_link_succeeded`,
-`auth.google_link_failed`, `task.completed`, `task.reopened`, and `task.deleted`.
+`auth.google_link_failed`, `task.completed`, `task.reopened`, `task.deleted`,
+`recurring_task.stopped`, `recurring_task.deleted`, `recurring_task.occurrence_skipped`, and
+`recurring_task.occurrence_detached`.
 `task.completed` is written only when the status changes, with metadata `{ previousStatus }`.
 The reopen and delete rows use metadata `{}`. Task creates and field edits are not audited, and
-task metadata never includes the title, notes, or request body (decision D-039). The client address is stored as `ipHash`
+task metadata never includes the title, notes, or request body (decision D-039). Recurrence
+metadata is ids and statuses only, never the title, notes, or rule text (decision D-041).
+Materialization and ordinary series field edits are not audited. The client address is stored as `ipHash`
 (HMAC-SHA256 of the OTP pepper and an `ip:` prefix, decision D-029), never the raw IP, and never
 a secret. Password-reset and Google rows do not store the email, the code, tokens, the
 authorization code, the verifier, or the client secret. Google metadata is the allowlist in

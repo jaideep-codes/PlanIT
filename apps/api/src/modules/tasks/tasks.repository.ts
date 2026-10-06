@@ -29,6 +29,7 @@ const TASK_SELECT = {
   estimatedMinutes: true,
   completedAt: true,
   sortOrder: true,
+  recurringTaskId: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -44,6 +45,7 @@ export interface TaskWrite {
   scheduledEnd: Date | null;
   estimatedMinutes: number | null;
   sortOrder: string;
+  recurringTaskId?: string | null;
 }
 
 export interface TaskFieldPatch {
@@ -82,6 +84,7 @@ function toTask(row: TaskRow): Task {
     estimatedMinutes: row.estimatedMinutes,
     completedAt: row.completedAt ? row.completedAt.toISOString() : null,
     sortOrder: row.sortOrder,
+    recurringTaskId: row.recurringTaskId,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -158,6 +161,7 @@ export class TasksRepository {
         estimatedMinutes: write.estimatedMinutes,
         completedAt: null,
         sortOrder: write.sortOrder,
+        recurringTaskId: write.recurringTaskId ?? null,
       },
       select: TASK_SELECT,
     });
@@ -190,6 +194,48 @@ export class TasksRepository {
     });
     if (result.count === 0) return null;
     return this.findById(userId, taskId, tx);
+  }
+
+  async setLinkedOccurrenceStatus(
+    userId: string,
+    taskId: string,
+    status: 'COMPLETED' | 'MATERIALIZED',
+    tx: DbClient,
+  ): Promise<void> {
+    await tx.taskOccurrence.updateMany({
+      where: { userId, taskId },
+      data: { status },
+    });
+  }
+
+  /** Keeps the occurrence row so the daily job does not create the date again. */
+  async skipLinkedOccurrence(userId: string, taskId: string, tx: DbClient): Promise<void> {
+    await tx.taskOccurrence.updateMany({
+      where: { userId, taskId },
+      data: { status: 'SKIPPED', taskId: null },
+    });
+  }
+
+  async clearRecurringTaskId(userId: string, taskId: string, tx: DbClient): Promise<Task | null> {
+    const result = await tx.task.updateMany({
+      where: { id: taskId, userId },
+      data: { recurringTaskId: null },
+    });
+    if (result.count === 0) return null;
+    return this.findById(userId, taskId, tx);
+  }
+
+  async deleteOpenForSeries(userId: string, seriesId: string, tx: DbClient): Promise<void> {
+    await tx.task.deleteMany({
+      where: { userId, recurringTaskId: seriesId, status: { not: 'COMPLETED' } },
+    });
+  }
+
+  async detachCompletedForSeries(userId: string, seriesId: string, tx: DbClient): Promise<void> {
+    await tx.task.updateMany({
+      where: { userId, recurringTaskId: seriesId, status: 'COMPLETED' },
+      data: { recurringTaskId: null },
+    });
   }
 
   async delete(userId: string, taskId: string, tx: DbClient): Promise<boolean> {

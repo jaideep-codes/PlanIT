@@ -31,7 +31,7 @@ function codePointLength(value: string): number {
   return Array.from(value).length;
 }
 
-const taskTitleSchema = z
+export const taskTitleSchema = z
   .string()
   .trim()
   .superRefine((value, ctx) => {
@@ -44,7 +44,7 @@ const taskTitleSchema = z
   });
 
 /** Trimmed. A blank value becomes null so the column stays null instead of empty. */
-const taskNotesSchema = z
+export const taskNotesSchema = z
   .string()
   .trim()
   .superRefine((value, ctx) => {
@@ -54,14 +54,14 @@ const taskNotesSchema = z
   })
   .transform((value) => (value.length === 0 ? null : value));
 
-const taskPrioritySchema = z.enum(TASK_PRIORITIES);
+export const taskPrioritySchema = z.enum(TASK_PRIORITIES);
 
-const calendarDateSchema = z.iso.date('Enter a calendar date as YYYY-MM-DD.');
+export const calendarDateSchema = z.iso.date('Enter a calendar date as YYYY-MM-DD.');
 
 /** An instant. `Z` and numeric offsets are both accepted; the API stores UTC. */
 const instantSchema = z.iso.datetime({ offset: true, error: 'Enter an ISO 8601 timestamp.' });
 
-const estimatedMinutesSchema = z
+export const estimatedMinutesSchema = z
   .number()
   .int('Enter a whole number of minutes.')
   .min(1, 'Estimate must be at least 1 minute.')
@@ -211,6 +211,7 @@ export const taskSchema = z.strictObject({
   estimatedMinutes: z.number().int().nullable(),
   completedAt: z.iso.datetime().nullable(),
   sortOrder: z.string().min(1).max(64),
+  recurringTaskId: z.uuid().nullable(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
 }) satisfies z.ZodType<Task>;

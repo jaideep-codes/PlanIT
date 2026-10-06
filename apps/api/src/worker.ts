@@ -7,9 +7,19 @@ import { Redis } from 'ioredis';
 import { Logger } from 'nestjs-pino';
 
 import type { Env } from './config/env.js';
-import { EMAIL_QUEUE, MAINTENANCE_QUEUE } from './infrastructure/queue/queue.constants.js';
+import {
+  EMAIL_QUEUE,
+  FAILED_JOB_AGE_SECONDS,
+  MAINTENANCE_QUEUE,
+} from './infrastructure/queue/queue.constants.js';
 import { EmailProcessor } from './worker/email.processor.js';
+import {
+  DELETE_EXPIRED_OTPS_JOB,
+  RECURRENCE_MATERIALIZE_JOB,
+  runMaintenanceJob,
+} from './worker/maintenance-dispatch.js';
 import { OtpCleanupProcessor } from './worker/otp-cleanup.processor.js';
+import { RecurrenceProcessor } from './worker/recurrence.processor.js';
 import { WorkerModule } from './worker.module.js';
 
 function connection(url: string): Redis {
@@ -26,15 +36,22 @@ async function bootstrap(): Promise<void> {
 
   const emailProcessor = app.get(EmailProcessor);
   const cleanup = app.get(OtpCleanupProcessor);
+  const recurrence = app.get(RecurrenceProcessor);
 
   const emailWorker = new Worker(
     EMAIL_QUEUE,
     (job) => emailProcessor.process(job.data, { id: job.id, attemptsMade: job.attemptsMade }),
     { connection: connection(redisUrl), concurrency: 5 },
   );
-  const maintenanceWorker = new Worker(MAINTENANCE_QUEUE, () => cleanup.process(), {
-    connection: connection(redisUrl),
-  });
+  const maintenanceWorker = new Worker(
+    MAINTENANCE_QUEUE,
+    (job) =>
+      runMaintenanceJob(job.name, {
+        deleteExpiredOtps: () => cleanup.process(),
+        materializeRecurrence: () => recurrence.process(),
+      }),
+    { connection: connection(redisUrl) },
+  );
   const maintenanceQueue = new Queue(MAINTENANCE_QUEUE, { connection: connection(redisUrl) });
 
   const logFailure =
@@ -48,9 +65,24 @@ async function bootstrap(): Promise<void> {
   await maintenanceQueue.upsertJobScheduler(
     'otp-cleanup',
     { pattern: '15 * * * *' },
-    { name: 'delete-expired-otps', data: {} },
+    { name: DELETE_EXPIRED_OTPS_JOB, data: {} },
+  );
+  await maintenanceQueue.upsertJobScheduler(
+    'recurrence-materialize',
+    { pattern: '20 0 * * *' },
+    {
+      name: RECURRENCE_MATERIALIZE_JOB,
+      data: {},
+      opts: {
+        attempts: 5,
+        backoff: { type: 'exponential', delay: 1000 },
+        removeOnComplete: true,
+        removeOnFail: { age: FAILED_JOB_AGE_SECONDS },
+      },
+    },
   );
   await cleanup.process();
+  await recurrence.process();
 
   logger.log('PlanIT worker started', 'Bootstrap');
 

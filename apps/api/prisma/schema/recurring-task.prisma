@@ -1,0 +1,65 @@
+// Recurring series and the occurrence rows that stop a date from being generated twice.
+// A row is written only when a date is materialized, skipped, or detached. PENDING is
+// part of the status enum and is not inserted for a future horizon.
+
+enum OccurrenceStatus {
+  PENDING
+  MATERIALIZED
+  SKIPPED
+  COMPLETED
+}
+
+model RecurringTask {
+  id                 String       @id @default(uuid(7)) @db.Uuid
+  userId             String       @map("user_id") @db.Uuid
+  /// Trimmed by the application. Length 1–200 is a CHECK constraint.
+  title              String       @db.VarChar(200)
+  /// Null when the owner left it blank. Empty strings are stored as null.
+  notes              String?      @db.VarChar(10000)
+  priority           TaskPriority @default(MEDIUM)
+  /// Canonical RRULE written by the server. Clients send a structured rule, never this string.
+  recurrenceRule     String       @map("recurrence_rule") @db.Text
+  /// First calendar date that may materialize, in the series timezone. Inclusive.
+  startDate          DateTime     @map("start_date") @db.Date
+  /// Last calendar date that may materialize, in the series timezone. Inclusive. Null means open.
+  endDate            DateTime?    @map("end_date") @db.Date
+  /// IANA name. Validated with Intl.DateTimeFormat, same as users.timezone.
+  timezone           String       @db.VarChar(64)
+  /// False means the generator creates nothing more. Existing tasks stay.
+  enabled            Boolean      @default(true)
+  estimatedMinutes   Int?         @map("estimated_minutes")
+  /// Minute of the local day (0–1439). Set only when estimatedMinutes is set.
+  defaultStartMinute Int?         @map("default_start_minute") @db.SmallInt
+  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+  occurrences TaskOccurrence[]
+
+  // List a user's enabled series for the daily generator.
+  @@index([userId, enabled])
+  // List a user's series by when they start.
+  @@index([userId, startDate])
+  @@map("recurring_tasks")
+}
+
+model TaskOccurrence {
+  id              String           @id @default(uuid(7)) @db.Uuid
+  recurringTaskId String           @map("recurring_task_id") @db.Uuid
+  userId          String           @map("user_id") @db.Uuid
+  /// Null after skip, or after the linked task is deleted. Unique so one task has one row.
+  taskId          String?          @unique @map("task_id") @db.Uuid
+  /// Calendar date in the series timezone, not an instant.
+  occurrenceDate  DateTime         @map("occurrence_date") @db.Date
+  status          OccurrenceStatus
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  recurringTask RecurringTask @relation(fields: [recurringTaskId], references: [id], onDelete: Cascade)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task          Task?         @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  // One row per series and date. Two workers cannot both insert the same occurrence.
+  @@unique([recurringTaskId, occurrenceDate])
+  @@map("task_occurrences")
+}

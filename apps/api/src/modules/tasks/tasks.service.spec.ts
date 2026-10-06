@@ -30,6 +30,7 @@ function sample(overrides: Partial<Task> = {}): Task {
     estimatedMinutes: null,
     completedAt: null,
     sortOrder: 'a0',
+    recurringTaskId: null,
     createdAt: '2026-10-05T00:00:00.000Z',
     updatedAt: '2026-10-05T00:00:00.000Z',
     ...overrides,
@@ -46,6 +47,7 @@ class FakeTasks {
   pages: TaskPageQuery[] = [];
   completeCalls = 0;
   reopenCalls = 0;
+  occurrenceWrites: string[] = [];
   private readonly stored = new Map<string, Task>();
 
   constructor(tasks: Task[] = []) {
@@ -149,6 +151,16 @@ class FakeTasks {
 
   hasTaskBetween(): Promise<boolean> {
     return Promise.resolve(this.blocked);
+  }
+
+  setLinkedOccurrenceStatus(_userId: string, _taskId: string, status: string): Promise<void> {
+    this.occurrenceWrites.push(status);
+    return Promise.resolve();
+  }
+
+  skipLinkedOccurrence(): Promise<void> {
+    this.occurrenceWrites.push('SKIPPED');
+    return Promise.resolve();
   }
 
   storedSet(task: Task): void {
@@ -312,6 +324,22 @@ describe('TasksService', () => {
       service(tight).reposition('owner', moving.id, { beforeId: before.id, afterId: after.id }),
       HttpStatus.CONFLICT,
     );
+  });
+
+  it('keeps a generated occurrence in step with complete, reopen, and delete', async () => {
+    const linked = sample({ recurringTaskId: '01990000-0000-7000-8000-000000000010' });
+    const fake = new FakeTasks([linked]);
+    const tasks = service(fake);
+    await tasks.complete('owner', linked.id, META);
+    await tasks.complete('owner', linked.id, META);
+    await tasks.reopen('owner', linked.id, META);
+    await tasks.delete('owner', linked.id, META);
+    expect(fake.occurrenceWrites).toEqual(['COMPLETED', 'MATERIALIZED', 'SKIPPED']);
+
+    const detached = sample({ id: '01990000-0000-7000-8000-000000000011' });
+    const plain = new FakeTasks([detached]);
+    await service(plain).delete('owner', detached.id, META);
+    expect(plain.occurrenceWrites).toEqual([]);
   });
 
   it('returns 404 when a field edit cannot see the task', async () => {

@@ -16,6 +16,7 @@ import { HealthModule } from './modules/health/health.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { EntitlementModule } from './modules/entitlements/entitlement.module.js';
+import { RecurringTasksModule } from './modules/recurring-tasks/recurring-tasks.module.js';
 import { TasksModule } from './modules/tasks/tasks.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
@@ -46,6 +47,7 @@ import { UsersModule } from './modules/users/users.module.js';
     AuthModule,
     UsersModule,
     TasksModule,
+    RecurringTasksModule,
     HealthModule,
   ],
   providers: [

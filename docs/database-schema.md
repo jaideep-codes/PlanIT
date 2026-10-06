@@ -74,49 +74,76 @@ metadata` (JSONB object), `request_id?, ip_hash?, created_at`. CHECKs: action ma
 
 ## Implemented (Phase 3 Part 1)
 
-Migration `20261005145330_tasks`. One-off tasks only. There is no `recurring_task_id` column, and
-there are no timer or focus columns. `IN_PROGRESS` is a status the owner sets; it is not timer state.
+Migration `20261005145330_tasks`. One-off tasks. There are no timer or focus columns.
+`IN_PROGRESS` is a status the owner sets; it is not timer state. `recurring_task_id` was added
+in migration `20261005163009_recurring_tasks` (Part 3).
 
 ### `tasks`
 
-| Column            | Type           | Notes                                                                  |
-| ----------------- | -------------- | ---------------------------------------------------------------------- |
-| id                | uuid PK        | UUIDv7                                                                 |
-| user_id           | uuid           | non-null FK to `users`, `ON DELETE CASCADE`                            |
-| title             | varchar(200)   | trimmed by the application; CHECK length 1–200                         |
-| notes             | varchar(10000) | null, or CHECK length 1–10000                                          |
-| priority          | TaskPriority   | `LOW`, `MEDIUM`, `HIGH`; default `MEDIUM`                              |
-| status            | TaskStatus     | `TODO`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`; default `TODO`        |
-| due_date          | date           | nullable calendar date, not an instant                                 |
-| scheduled_start   | timestamptz(3) | nullable; both schedule columns are null, or the end is strictly later |
-| scheduled_end     | timestamptz(3) | nullable                                                               |
-| estimated_minutes | integer        | null, or 1–10080                                                       |
-| completed_at      | timestamptz(3) | set if and only if `status = COMPLETED`                                |
-| sort_order        | varchar(64)    | fractional index, length 1–64. The client never sends it               |
-| created_at        | timestamptz(3) |                                                                        |
-| updated_at        | timestamptz(3) |                                                                        |
+| Column            | Type           | Notes                                                                         |
+| ----------------- | -------------- | ----------------------------------------------------------------------------- |
+| id                | uuid PK        | UUIDv7                                                                        |
+| user_id           | uuid           | non-null FK to `users`, `ON DELETE CASCADE`                                   |
+| title             | varchar(200)   | trimmed by the application; CHECK length 1–200                                |
+| notes             | varchar(10000) | null, or CHECK length 1–10000                                                 |
+| priority          | TaskPriority   | `LOW`, `MEDIUM`, `HIGH`; default `MEDIUM`                                     |
+| status            | TaskStatus     | `TODO`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`; default `TODO`               |
+| due_date          | date           | nullable calendar date, not an instant                                        |
+| scheduled_start   | timestamptz(3) | nullable; both schedule columns are null, or the end is strictly later        |
+| scheduled_end     | timestamptz(3) | nullable                                                                      |
+| estimated_minutes | integer        | null, or 1–10080                                                              |
+| completed_at      | timestamptz(3) | set if and only if `status = COMPLETED`                                       |
+| sort_order        | varchar(64)    | fractional index, length 1–64. The client never sends it                      |
+| recurring_task_id | uuid           | nullable FK to `recurring_tasks`, `ON DELETE SET NULL`. Null on one-off tasks |
+| created_at        | timestamptz(3) |                                                                               |
+| updated_at        | timestamptz(3) |                                                                               |
 
 Indexes, each commented in the migration with the query it serves: `(user_id, status)`,
-`(user_id, due_date)`, `(user_id, scheduled_start)`, `(user_id, priority)`, `(user_id, sort_order)`.
+`(user_id, due_date)`, `(user_id, scheduled_start)`, `(user_id, priority)`, `(user_id, sort_order)`,
+and, from the Part 3 migration, `(user_id, recurring_task_id)`.
+
+## Implemented (Phase 3 Part 3)
+
+Migration `20261005163009_recurring_tasks`. The series UI is not part of this migration.
+
+### `recurring_tasks`
+
+| Column               | Type           | Notes                                                                  |
+| -------------------- | -------------- | ---------------------------------------------------------------------- |
+| id                   | uuid PK        | UUIDv7                                                                 |
+| user_id              | uuid           | non-null FK to `users`, `ON DELETE CASCADE`                            |
+| title                | varchar(200)   | CHECK length 1–200                                                     |
+| notes                | varchar(10000) | null, or CHECK length 1–10000                                          |
+| priority             | TaskPriority   | `LOW`, `MEDIUM`, `HIGH`; default `MEDIUM`                              |
+| recurrence_rule      | text           | canonical RRULE the server wrote. CHECK length 1–500                   |
+| start_date           | date           | inclusive first date, in the series timezone                           |
+| end_date             | date           | null, or CHECK `end_date >= start_date`. Inclusive last date           |
+| timezone             | varchar(64)    | IANA name, validated with `Intl.DateTimeFormat`                        |
+| enabled              | boolean        | default true. False means the generator creates nothing more           |
+| estimated_minutes    | integer        | null, or CHECK 1–10080                                                 |
+| default_start_minute | smallint       | null, or CHECK 0–1439. CHECK: set only when `estimated_minutes` is set |
+| created_at           | timestamptz(3) |                                                                        |
+| updated_at           | timestamptz(3) |                                                                        |
+
+Indexes: `(user_id, enabled)`, `(user_id, start_date)`.
+
+### `task_occurrences`
+
+| Column            | Type             | Notes                                                 |
+| ----------------- | ---------------- | ----------------------------------------------------- |
+| id                | uuid PK          | UUIDv7                                                |
+| recurring_task_id | uuid             | non-null FK to `recurring_tasks`, `ON DELETE CASCADE` |
+| user_id           | uuid             | non-null FK to `users`, `ON DELETE CASCADE`           |
+| task_id           | uuid             | nullable unique FK to `tasks`, `ON DELETE SET NULL`   |
+| occurrence_date   | date             | calendar date in the series timezone                  |
+| status            | OccurrenceStatus | `PENDING`, `MATERIALIZED`, `SKIPPED`, `COMPLETED`     |
+| created_at        | timestamptz(3)   |                                                       |
+
+Unique `(recurring_task_id, occurrence_date)`. `PENDING` is in the enum and is not inserted for a
+future horizon. A row is written only when a date is materialized, skipped, or detached. An
+existing row, of any status, means the generator does not create that date again (decision D-041).
 
 ## Planned
-
-### Phase 3: recurrence
-
-`Task` is implemented above. These two models are not.
-
-- **RecurringTask**: `id, userId, title, notes?, priority, recurrenceRule (RFC 5545 RRULE),
-startDate, endDate?, timezone, enabled, estimatedMinutes?, defaultStartMinute?, createdAt,
-updatedAt`. Indexes: `(userId, enabled)`, `(userId, startDate)`.
-- **TaskOccurrence**: `id, recurringTaskId, userId, taskId? (unique), occurrenceDate (local
-date), status (PENDING | MATERIALIZED | SKIPPED | COMPLETED), createdAt`. Unique
-  `(recurringTaskId, occurrenceDate)` prevents duplicate generation under concurrency.
-
-Recurrence strategy: rules are expanded in the rule's timezone (DST-safe, using `rrule` plus
-`Temporal`/`date-fns-tz`), and occurrences are materialized lazily for a rolling window (when a
-date range is viewed, and by a daily job for the next 14 days). Editing one occurrence detaches
-its task; editing the series updates the rule and future un-materialized occurrences only;
-"stop recurrence" sets `endDate`.
 
 ### Phase 4: focus
 

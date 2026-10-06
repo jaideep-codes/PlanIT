@@ -20,6 +20,8 @@ export interface Task {
   estimatedMinutes: number | null;
   completedAt: string | null;
   sortOrder: string;
+  /** Null for a one-off task and after an occurrence is detached. */
+  recurringTaskId: string | null;
   createdAt: string;
   updatedAt: string;
 }

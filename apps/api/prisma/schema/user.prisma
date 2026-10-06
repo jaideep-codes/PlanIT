@@ -49,8 +49,10 @@ model User {
   sessions      AuthSession[]
   emailOtps     EmailOtp[]
   oauthAccounts OAuthAccount[]
-  auditLogs     AuditLog[]
-  tasks         Task[]
+  auditLogs       AuditLog[]
+  tasks           Task[]
+  recurringTasks  RecurringTask[]
+  taskOccurrences TaskOccurrence[]
 
   @@map("users")
 }

@@ -3,5 +3,6 @@ export * from './errors.js';
 export * from './schemas/api.js';
 export * from './schemas/auth.js';
 export * from './schemas/health.js';
+export * from './schemas/recurring-task.js';
 export * from './schemas/task.js';
 export * from './schemas/user.js';

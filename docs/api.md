@@ -1,8 +1,8 @@
 # API
 
 > Implemented: health checks, Phase 2 auth (including Google sign-in), Phase 3 Part 1 one-off
-> tasks, and the saved task sort on the current user. Remaining route groups are listed as
-> **planned**. Recurrence is not implemented.
+> tasks, the saved task sort on the current user, and Phase 3 Part 3 recurrence. The series UI
+> has not started. Remaining route groups are listed as **planned**.
 
 ## Conventions
 
@@ -235,25 +235,85 @@ Schemas: `createTaskRequestSchema`, `updateTaskRequestSchema`, `repositionTaskRe
 `listTasksQuerySchema`, `taskIdSchema`, `taskSchema`, `taskListSchema` in `@planit/shared`.
 Response types: `Task` and `TaskList` in `@planit/types`.
 
+Every task response includes `recurringTaskId: string | null`. A one-off task returns null.
+`GET /tasks` does not materialize series. Completing a task whose `recurringTaskId` is set marks
+that occurrence `COMPLETED` in the same transaction. An idempotent complete does not write a
+second audit row. Reopening that task sets the occurrence back to `MATERIALIZED`. Deleting a
+linked task that is still attached marks the occurrence `SKIPPED`, sets `taskId` null, and
+deletes the task. Deleting a detached task leaves the occurrence row.
+
+### Recurrence (Phase 3 Part 3)
+
+The same session, ownership, and strict-body rules as one-off tasks. Another user's series id is
+`404`. `userId` in a body is `400`. Responses do not include `userId`. Clients send a structured
+rule, never a raw RRULE. The server stores one canonical RRULE and returns both the structured
+fields and `recurrenceRule`. `timezone` is optional on create; when it is omitted the series uses
+`users.timezone`. It is validated with `Intl.DateTimeFormat` (decision D-033). `WKST` is copied
+from the owner's `weekStartsOn` at create time. A later change to that preference does not
+rewrite existing rules. Editing the series refreshes `WKST` (decision D-041).
+
+| Method | Path                                                 | Success                                                                    |
+| ------ | ---------------------------------------------------- | -------------------------------------------------------------------------- |
+| POST   | `/api/v1/recurring-tasks`                            | `201` and the series. Also materializes today through today plus 13 days.  |
+| GET    | `/api/v1/recurring-tasks`                            | `{ "items", "nextCursor" }`. `createdAt` descending, then `id` descending. |
+| GET    | `/api/v1/recurring-tasks/:id`                        | the series                                                                 |
+| PATCH  | `/api/v1/recurring-tasks/:id`                        | the updated series. Does not rewrite tasks that already exist.             |
+| DELETE | `/api/v1/recurring-tasks/:id`                        | `200` and the deleted series.                                              |
+| POST   | `/api/v1/recurring-tasks/:id/stop`                   | `200` and the series. Body is `{}`.                                        |
+| GET    | `/api/v1/recurring-tasks/:id/occurrences?from=&to=`  | `{ "items", "nextCursor": null }`. Materializes that inclusive range.      |
+| POST   | `/api/v1/recurring-tasks/:id/occurrences/:date/skip` | `200` and the occurrence. Body is `{}`.                                    |
+| PATCH  | `/api/v1/recurring-tasks/:id/occurrences/:date`      | `200` and the detached task.                                               |
+
+`frequency` is `DAILY`, `WEEKDAYS`, `WEEKLY`, `MONTHLY`, or `CUSTOM`. `DAILY` and `WEEKDAYS` use
+interval 1. `WEEKDAYS` is Monday–Friday; any days the client sends are ignored. `WEEKLY` uses
+interval 1 and at least one `byDay` (`MO` `TU` `WE` `TH` `FR` `SA` `SU`). `MONTHLY` uses interval
+1 and one `byMonthDay`, or omits it to use the day of `startDate`. A month that does not contain
+that day is skipped. `CUSTOM` is daily with interval 2–99, weekly with interval 2–52 and at least
+one `byDay`, or monthly with interval 2–12 and one `byMonthDay`. `endDate` is null or a date on
+or after `startDate`, and it is inclusive in the series timezone. `defaultStartMinute` (0–1439)
+may be set only when `estimatedMinutes` is set.
+
+`from` after `to`, or an inclusive range longer than 62 days, is `400`. A disabled series returns
+existing occurrence rows and creates nothing. A date the current rule does not produce is `400`
+on skip and on edit-one. Skip of a date that is already `SKIPPED` returns that same row. Skip of
+a completed or already detached occurrence is `409` and changes nothing. Edit-one materializes
+the date when no row exists, applies the same field rules as `updateTaskRequestSchema`, then sets
+that task's `recurringTaskId` to null and leaves the occurrence row.
+
+Stop sets `enabled` false and `endDate` to the day before today in the series timezone. If that
+day is before `startDate`, `endDate` stays `startDate`. Tasks already created are kept. Delete
+removes linked tasks that are not `COMPLETED`, sets `recurringTaskId` null on linked `COMPLETED`
+tasks, then deletes the series. Occurrence rows cascade.
+
+Audit actions, with `targetType` `recurring_task` and metadata of ids and statuses only, are
+`recurring_task.stopped`, `recurring_task.deleted`, `recurring_task.occurrence_skipped`, and
+`recurring_task.occurrence_detached`. Materialization and ordinary series field edits are not
+audited. Titles, notes, and the rule text are not logged.
+
+Schemas: `createRecurringTaskRequestSchema`, `updateRecurringTaskRequestSchema`,
+`listRecurringTasksQuerySchema`, `occurrenceRangeQuerySchema`, `recurringTaskSchema`,
+`recurringTaskListSchema`, `taskOccurrenceSchema`, `taskOccurrenceListSchema` in `@planit/shared`.
+Response types: `RecurringTask`, `RecurringTaskList`, `TaskOccurrence`, and `TaskOccurrenceList`
+in `@planit/types`.
+
 ## Planned route groups
 
 All are under `/api/v1`, authenticated unless noted, and owner-scoped.
 
-| Group               | Phase | Highlights                                                                                                                           |
-| ------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `/auth`             | 2     | Implemented, including the Phase 2 security pass. Further providers, unlink, and email change are out of scope.                      |
-| `/users/me`         | 2     | Implemented above. Further profile fields (username, bio, privacy) are Phase 8.                                                      |
-| `/settings`         | 2+    | `weekStartsOn` and notification preferences. Theme is `PATCH /users/me/theme`.                                                       |
-| `/recurring-tasks`  | 3     | CRUD series, `POST :id/occurrences/:date/skip`, `PATCH …/occurrences/:date`, `POST :id/stop`. One-off `/tasks` is implemented above. |
-| `/focus`            | 4     | `POST start`, `POST :id/pause`, `POST :id/resume`, `POST :id/stop`, `POST :id/cancel`, `GET active`, `GET sessions` (cursor)         |
-| `/calendar`         | 5     | `GET ?from=&to=&view=day                                                                                                             | week                         | month`: scheduled tasks, occurrences, focus history |
-| `/statistics`       | 6     | `GET daily                                                                                                                           | weekly                       | monthly                                             | summary              | heatmap | records                      | streak` |
-| `/goals`, `/skills` | 7     | CRUD, milestones, task links, skill assignment, skill time                                                                           |
-| `/profiles`         | 8     | `GET :username` (assembled per viewer: anonymous, user, friend, owner, blocked), `GET me/preview?as=public                           | friend`, visibility settings |
-| `/friends`          | 8     | search (privacy- and block-aware), requests, accept/decline, remove, block/unblock                                                   |
-| `/leaderboards`     | 8     | `GET ?scope=friends                                                                                                                  | global&period=daily          | weekly                                              | monthly&metric=focus | streak  | tasks`→`{ top, me, nearby }` |
-| `/notifications`    | 5+    | list (cursor), mark read                                                                                                             |
-| `/ai`               | 9     | `POST chat` (streamed), `GET context/preview?scope=` (exactly what would be shared)                                                  |
-| `/ai/proposals`     | 9     | `POST` (validate+persist a proposal), `GET :id`, `POST :id/approve` (with `payloadHash` + `Idempotency-Key`), `POST :id/reject`      |
-| `/ai/usage`         | 12    | managed-AI usage and remaining allowance; BYOK records are informational                                                             |
-| `/me/export`        | 13    | context export (Markdown, JSON, plain text), with no credentials                                                                     |
+| Group               | Phase | Highlights                                                                                                                      |
+| ------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `/auth`             | 2     | Implemented, including the Phase 2 security pass. Further providers, unlink, and email change are out of scope.                 |
+| `/users/me`         | 2     | Implemented above. Further profile fields (username, bio, privacy) are Phase 8.                                                 |
+| `/settings`         | 2+    | `weekStartsOn` and notification preferences. Theme is `PATCH /users/me/theme`.                                                  |
+| `/focus`            | 4     | `POST start`, `POST :id/pause`, `POST :id/resume`, `POST :id/stop`, `POST :id/cancel`, `GET active`, `GET sessions` (cursor)    |
+| `/calendar`         | 5     | `GET ?from=&to=&view=day                                                                                                        | week                         | month`: scheduled tasks, occurrences, focus history |
+| `/statistics`       | 6     | `GET daily                                                                                                                      | weekly                       | monthly                                             | summary              | heatmap | records                      | streak` |
+| `/goals`, `/skills` | 7     | CRUD, milestones, task links, skill assignment, skill time                                                                      |
+| `/profiles`         | 8     | `GET :username` (assembled per viewer: anonymous, user, friend, owner, blocked), `GET me/preview?as=public                      | friend`, visibility settings |
+| `/friends`          | 8     | search (privacy- and block-aware), requests, accept/decline, remove, block/unblock                                              |
+| `/leaderboards`     | 8     | `GET ?scope=friends                                                                                                             | global&period=daily          | weekly                                              | monthly&metric=focus | streak  | tasks`→`{ top, me, nearby }` |
+| `/notifications`    | 5+    | list (cursor), mark read                                                                                                        |
+| `/ai`               | 9     | `POST chat` (streamed), `GET context/preview?scope=` (exactly what would be shared)                                             |
+| `/ai/proposals`     | 9     | `POST` (validate+persist a proposal), `GET :id`, `POST :id/approve` (with `payloadHash` + `Idempotency-Key`), `POST :id/reject` |
+| `/ai/usage`         | 12    | managed-AI usage and remaining allowance; BYOK records are informational                                                        |
+| `/me/export`        | 13    | context export (Markdown, JSON, plain text), with no credentials                                                                |
